@@ -49,6 +49,7 @@ function normalize(page) {
     id: page.id,
     title: title || 'Untitled video',
     plat: PLAT[platName] || 'ig',
+    format: choice(prop(p, 'Format')).toLowerCase() || null,
     url: (urlProp && urlProp.url) || '',
     posted: dateOf(prop(p, 'Posted')),
     views: num(prop(p, 'Views')) || 0,
