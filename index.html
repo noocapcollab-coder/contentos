@@ -85,7 +85,6 @@ button.tr{width:100%;min-height:44px;border:0;border-radius:8px;background:trans
 button.tr:hover{background:#1A1D22}
 button.tr.on{background:#22262C}
 .tr .rk{font-family:var(--mono);font-size:12px;color:var(--mu2)}
-.tr .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tr .p{display:flex;align-items:center;gap:6px;color:var(--tx2)}
 .tr .m{font-family:var(--mono);color:var(--tx2)}
 .tr .m.hi{color:var(--tx)}
@@ -93,6 +92,15 @@ button.tr.on{background:#22262C}
 .fmt{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:2px 6px;border-radius:4px;margin-right:8px;vertical-align:1px;border:1px solid #3A3F48;color:var(--mu)}
 .fmt.s{color:#F5B971;border-color:rgba(245,185,113,.45);background:rgba(245,185,113,.08)}
 .ctrls{display:flex;gap:8px;flex-wrap:wrap}
+.tr .t{display:flex;align-items:center;min-width:0}
+.tr .t .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini{width:48px;height:27px;border-radius:4px;object-fit:cover;flex-shrink:0;margin-right:10px;background:var(--s2)}
+.mini.v{width:20px;height:34px}
+.hero{display:block;border-radius:12px;overflow:hidden;background:#000;position:relative}
+.hero img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.hero.v{width:200px;margin:0 auto}
+.hero.v img{aspect-ratio:9/16}
+.hero .len{position:absolute;right:8px;bottom:8px;font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:4px;background:rgba(0,0,0,.75);color:#fff}
 
 aside{width:470px;flex-shrink:0;padding:22px;display:flex;flex-direction:column;gap:20px;border-radius:16px;position:sticky;top:20px}
 .dhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -206,6 +214,11 @@ function fmt(n) {
 }
 const full = n => Number(n || 0).toLocaleString('en-US');
 const na = n => (n == null ? 'n/a' : full(n));
+function dur(s) {
+  if (s == null) return '';
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
+}
 const eng = v => v.likes + v.comments + (v.shares || 0) + (v.saves || 0);
 
 // All date maths runs on IST so the day boundary matches Mumbai.
@@ -445,7 +458,7 @@ function render() {
       <div class="rows">${sorted.map(v => {
         const on = sel && v.id === sel.id;
         return `<button type="button" class="tr ${on ? 'on' : ''}" data-act="sel" data-v="${esc(v.id)}">
-          <span class="rk">${rank[v.id]}</span><span class="t">${fmtTag(v)}${esc(v.title)}</span>
+          <span class="rk">${rank[v.id]}</span><span class="t">${v.thumb ? `<img class="mini ${v.format === 'short' ? 'v' : ''}" src="${esc(v.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}${fmtTag(v)}<span class="tt">${esc(v.title)}</span></span>
           <span class="p"><span class="dot" style="background:${P[v.plat].color}"></span>${P[v.plat].name}</span>
           <span class="m hi">${fmt(v.views)}</span><span class="m hs">${fmt(v.likes)}</span>
           <span class="m hs">${fmt(v.comments)}</span><span class="m hs">${v.shares == null ? 'n/a' : fmt(v.shares)}</span>
@@ -469,7 +482,12 @@ function render() {
   const gains = hist.map((p, i) => Math.max(0, i ? p.v - hist[i - 1].v : p.v));
   const maxG = Math.max(1, ...gains);
 
-  $('detail').innerHTML = `
+  const hero = sel.thumb
+    ? `<a class="hero ${sel.format === 'short' ? 'v' : ''}" href="${esc(sel.url || '#')}" target="_blank" rel="noopener" aria-label="Open video">
+        <img src="${esc(sel.thumb)}" alt="Thumbnail for ${esc(sel.title)}" referrerpolicy="no-referrer">
+        ${sel.duration ? `<span class="len">${dur(sel.duration)}</span>` : ''}</a>`
+    : '';
+  $('detail').innerHTML = `${hero}
     <div class="dhead"><span class="chip" style="background:${c}22;color:${c}"><span class="dot" style="background:${c}"></span>${P[sel.plat].name}</span>
       ${fmtTag(sel)}<span class="when">Posted ${dateLabel(sel.posted)}, ${sel.age === 0 ? 'today' : sel.age === 1 ? '1 day ago' : sel.age + ' days ago'}</span></div>
     <h3>${esc(sel.title)}</h3>
@@ -481,7 +499,9 @@ function render() {
       <div class="metric"><span class="lbl">Comments</span><b>${full(sel.comments)}</b></div>
       <div class="metric"><span class="lbl">Shares</span><b>${na(sel.shares)}</b></div>
       <div class="metric"><span class="lbl">Saves</span><b>${na(sel.saves)}</b></div>
-      <div class="metric"><span class="lbl">Avg watch</span><b>${watch}</b></div>
+      ${sel.watch == null && sel.duration
+        ? `<div class="metric"><span class="lbl">Length</span><b>${dur(sel.duration)}</b></div>`
+        : `<div class="metric"><span class="lbl">Avg watch</span><b>${watch}</b></div>`}
       <div class="metric"><span class="lbl">Eng. rate</span><b>${sel.views ? (eng(sel) / sel.views * 100).toFixed(1) + '%' : '–'}</b></div>
     </div>
     <div class="sec"><h4>Engagement breakdown</h4>
