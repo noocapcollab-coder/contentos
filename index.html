@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content OS · NOOCAP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D0E11;--s1:#15171B;--s2:#1C1F24;--line:#262A31;
+  --tx:#ECEAE4;--tx2:#C9CCD3;--mu:#A0A4AD;--mu2:#7C8089;
+  --ac:#C9F25C;--dn:#F28B7A;
+  --mono:'Geist Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:'Geist','Helvetica Neue',sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+a{color:var(--ac);text-decoration:none}
+a:hover{color:#E2FF8F}
+
+.wrap{max-width:1480px;margin:0 auto;padding:28px 32px 40px;display:flex;flex-direction:column;gap:20px}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand small{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--mu)}
+.brand h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+.tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:4px 8px;border:1px solid #3A3F48;border-radius:999px;color:var(--mu)}
+.seg{display:flex;gap:4px;padding:4px;background:var(--s1);border:1px solid var(--line);border-radius:999px;overflow-x:auto;max-width:100%;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{height:38px;padding:0 18px;border:0;border-radius:999px;background:transparent;color:var(--tx2);font-size:14px;font-weight:500;white-space:nowrap;flex-shrink:0}
+.seg button.on{background:var(--ac);color:var(--bg)}
+.seg.sm{border-radius:10px}
+.seg.sm button{height:32px;padding:0 12px;border-radius:7px;font-family:var(--mono);font-size:12px;color:var(--mu)}
+.seg.sm button.on{background:var(--line);color:var(--tx)}
+.right{display:flex;align-items:center;gap:14px}
+.sync{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mu);white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--ac)}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:14px}
+.kpi{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mu)}
+.kpi .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.kpi .v{font-size:34px;font-weight:600;letter-spacing:-.03em}
+.delta{font-family:var(--mono);font-size:12px;padding:3px 8px;border-radius:6px;white-space:nowrap}
+.delta.up{color:var(--ac);background:rgba(201,242,92,.12)}
+.delta.dn{color:var(--dn);background:rgba(242,139,122,.12)}
+.kpi .sub{font-size:12px;color:var(--mu)}
+
+.plats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.plat{text-align:left;padding:14px 16px;display:flex;flex-direction:column;gap:10px;background:var(--s1);border:1px solid var(--line);border-radius:14px}
+.plat:hover{border-color:#3A3F48}
+.plat.on{border-color:var(--ac)}
+.plat .top{display:flex;align-items:center;gap:8px;width:100%;font-size:13px;color:var(--tx2)}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.plat .n{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--mu)}
+.plat .v{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.plat .v span{font-size:12px;font-weight:400;color:var(--mu)}
+.track{width:100%;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.track i{display:block;height:100%}
+
+main{display:flex;gap:20px;align-items:flex-start}
+.board{flex:1;min-width:0;padding:20px 22px;display:flex;flex-direction:column;gap:16px;border-radius:16px}
+.bhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.bhead h2{margin:0;font-size:16px;font-weight:600}
+.bhead p{margin:4px 0 0;font-size:12px;color:var(--mu)}
+.chart{height:236px;display:flex;align-items:flex-end;gap:10px;padding:0 4px;overflow-x:auto}
+.bar{flex:1;min-width:30px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;background:none;border:0;padding:0}
+.bar .val{font-family:var(--mono);font-size:11px;color:var(--mu2)}
+.bar .col{display:block;width:100%;max-width:46px;border-radius:6px 6px 2px 2px;opacity:.5;transition:opacity .15s}
+.bar:hover .col{opacity:.8}
+.bar.on .col{opacity:1;outline:2px solid var(--ac);outline-offset:3px}
+.bar.on .val{color:var(--tx)}
+.bar .ax{font-family:var(--mono);font-size:10px;color:var(--mu2);padding-top:4px;white-space:nowrap}
+
+.table{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column}
+.tr{display:grid;grid-template-columns:34px minmax(0,1fr) 104px 80px 72px 84px 72px 60px;gap:8px;align-items:center;padding:0 10px}
+.th{padding-bottom:8px;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu2)}
+.rows{max-height:420px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+button.tr{width:100%;min-height:44px;border:0;border-radius:8px;background:transparent;font-size:13px;text-align:left}
+button.tr:hover{background:#1A1D22}
+button.tr.on{background:#22262C}
+.tr .rk{font-family:var(--mono);font-size:12px;color:var(--mu2)}
+.tr .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .p{display:flex;align-items:center;gap:6px;color:var(--tx2)}
+.tr .m{font-family:var(--mono);color:var(--tx2)}
+.tr .m.hi{color:var(--tx)}
+.tr .m.er{color:var(--ac)}
+
+aside{width:470px;flex-shrink:0;padding:22px;display:flex;flex-direction:column;gap:20px;border-radius:16px;position:sticky;top:20px}
+.dhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:500}
+.dhead span.when{font-size:12px;color:var(--mu)}
+aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing:-.01em}
+.bigrow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.big{font-size:46px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.bigsub{font-size:12px;color:var(--mu);margin-top:8px}
+.open{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:10px 0}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.metric{background:var(--s2);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.metric b{font-size:19px;font-weight:600}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec h4{margin:0;font-size:13px;font-weight:600;color:var(--tx2)}
+.eng{display:flex;align-items:center;gap:12px;font-size:12px}
+.eng .l{width:72px;color:var(--mu)}
+.eng .tk{flex:1;height:10px;background:var(--s2);border-radius:5px;overflow:hidden}
+.eng .tk i{display:block;height:100%;border-radius:5px}
+.eng .n{width:56px;text-align:right;font-family:var(--mono)}
+.days{height:110px;display:flex;align-items:flex-end;gap:8px}
+.day{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--mu)}
+.day i{display:block;width:100%;border-radius:4px 4px 1px 1px}
+.day span:last-child{color:var(--mu2)}
+.cm{background:var(--s2);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.cm b{font-size:12px;font-weight:600;color:var(--tx2)}
+.cm span{font-size:13px;line-height:1.45}
+.note{font-size:12px;color:var(--mu);line-height:1.5}
+
+.state{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;color:var(--mu);font-size:14px;line-height:1.5;padding:20px}
+.state .btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.btn{height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--s2);font-size:13px}
+.btn.pri{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:500}
+
+@media (max-width:1180px){
+  main{flex-direction:column;align-items:stretch}
+  aside{width:auto;position:static}
+  .plats{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .wrap{padding:18px 14px 32px;gap:14px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .kpi{padding:14px}
+  .kpi .v{font-size:26px}
+  .kpi .row{flex-wrap:wrap}
+  .plats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .board,aside{padding:16px}
+  .tr{grid-template-columns:26px minmax(0,1fr) 64px 50px}
+  .tr .hs{display:none}
+  .big{font-size:38px}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <small>NOOCAP</small>
+      <h1 id="title">Content OS</h1>
+      <span class="tag" id="demoTag" hidden>SAMPLE DATA</span>
+    </div>
+    <nav class="seg" id="clients" aria-label="Clients"></nav>
+    <div class="right">
+      <div class="seg sm" id="ranges" aria-label="Date range"></div>
+      <span class="sync" id="sync"></span>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+  <section class="plats" id="plats" aria-label="Platforms"></section>
+
+  <main>
+    <div class="card board" id="board"></div>
+    <aside class="card" id="detail" aria-label="Video details"></aside>
+  </main>
+</div>
+
+<script>
+const P = {
+  yt: { name: 'YouTube',   color: '#F0705F' },
+  tt: { name: 'TikTok',    color: '#5CCFDC' },
+  ig: { name: 'Instagram', color: '#E07BB5' },
+  fb: { name: 'Facebook',  color: '#7B9EF0' }
+};
+const ROSTER = ['Brad', 'Chris', 'Lindsay', 'Duncan', 'Valeri', 'Emtech', 'David', 'Nicole'];
+const RANGES = { '7d': 7, '30d': 30, '90d': 90 };
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const qs = new URLSearchParams(location.search);
+const KEY = qs.get('k');
+const TEAM = qs.get('team');
+
+const S = {
+  client: qs.get('client') || null,
+  clients: [],
+  portal: !!KEY,
+  demo: qs.get('demo') === '1',
+  platform: 'all', range: '30d', sort: 'top', selId: null,
+  videos: [], synced: null, loading: true, error: null
+};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function fmt(n) {
+  n = Number(n || 0);
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'K';
+  return String(Math.round(n));
+}
+const full = n => Number(n || 0).toLocaleString('en-US');
+const na = n => (n == null ? 'n/a' : full(n));
+const eng = v => v.likes + v.comments + (v.shares || 0) + (v.saves || 0);
+
+// All date maths runs on IST so the day boundary matches Mumbai.
+function todayIST() {
+  const d = new Date(Date.now() + 5.5 * 3600e3);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+function ageOf(iso) {
+  if (!iso) return 9999;
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return Math.max(0, Math.round((todayIST() - Date.UTC(y, m - 1, d)) / 864e5));
+}
+function dateLabel(iso) {
+  if (!iso) return '–';
+  const [, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return MON[m - 1] + ' ' + d;
+}
+function ago(iso) {
+  if (!iso) return '';
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return mins + ' min ago';
+  const h = Math.round(mins / 60);
+  if (h < 48) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  return Math.round(h / 24) + ' days ago';
+}
+
+/* ---------- sample data, used with ?demo=1 or from the error screen ---------- */
+function rng(seed) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  let a = h >>> 0;
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function demoVideos(client) {
+  const titles = ["I built an AI employee in 20 minutes","ChatGPT's new feature nobody is using","Stop paying for Canva and use this instead","The AI tool that replaced my assistant","Claude just changed how I write emails","The prompt that doubled my output","How I automate my inbox with n8n","This AI edits your videos for you","Turn one video into a month of posts","The free AI tool every creator needs","Why your AI images look fake","I let AI run my Instagram for a week","Build a website without code in 10 minutes","The Notion setup I use every day"];
+  const pool = [
+    { u: '@mira.builds', t: 'Tried this tonight and it actually worked, saving this for later' },
+    { u: '@devonk', t: 'Which plan do you need for the automation part?' },
+    { u: '@thefitbiz', t: 'Been looking for exactly this, thank you' },
+    { u: '@priya.creates', t: 'Can you do a longer version of this on YouTube?' },
+    { u: '@leo_ai', t: 'The second tip alone saved me an hour a day' },
+    { u: '@samanthaj', t: 'Does this work on the free version?' },
+    { u: '@coachmarco', t: 'Sent this to my whole team' },
+    { u: '@nina.ops', t: 'Commenting so I remember to try this on Monday' }
+  ];
+  const r = rng(client);
+  const mult = { Brad: 1.4, Chris: 0.9, Lindsay: 1.8, Duncan: 1.2, Valeri: 0.7, Emtech: 1, David: 0.8, Nicole: 1.1 }[client] || 1;
+  const base = { yt: 28000, tt: 72000, ig: 58000, fb: 14000 };
+  const order = ['ig','tt','yt','ig','fb','tt','ig','yt','tt','ig','fb','tt','ig','yt','ig','tt','yt','fb'];
+  const off = Math.floor(r() * 14);
+  const out = [];
+  for (let i = 0; i < 18; i++) {
+    const plat = order[(i + off) % order.length];
+    const views = Math.round(base[plat] * mult * (0.15 + Math.pow(r(), 2) * 3.2));
+    const likes = Math.round(views * (0.025 + r() * 0.05));
+    const age = Math.round(i * 4.6) + 1;
+    const day = new Date(todayIST() - age * 864e5);
+    const history = [];
+    let cum = 0, left = 1;
+    for (let k = 0; k < Math.min(7, age); k++) {
+      const w = k === 6 ? left : left * (0.36 + r() * 0.12);
+      left -= w; cum += Math.round(w * views);
+      history.push({ d: new Date(day.getTime() + k * 864e5).toISOString().slice(0, 10), v: cum });
+    }
+    out.push({
+      id: client + '-' + i,
+      title: titles[(i * 5 + off) % titles.length],
+      plat, views, likes,
+      comments: Math.round(likes * (0.02 + r() * 0.06)),
+      shares: plat === 'yt' && r() > 0.5 ? null : Math.round(likes * (0.04 + r() * 0.22)),
+      saves: plat === 'ig' ? Math.round(likes * (0.1 + r() * 0.3)) : null,
+      watch: plat === 'yt' ? Math.round(40 + r() * 220) : plat === 'fb' ? null : Math.round(6 + r() * 22),
+      posted: day.toISOString().slice(0, 10),
+      url: '',
+      history,
+      topComments: [pool[(i * 3) % 8], pool[(i * 3 + 5) % 8]]
+    });
+  }
+  return out;
+}
+
+/* ---------- loading ---------- */
+async function load(fresh) {
+  if (S.demo) {
+    S.clients = S.portal ? [S.client || 'Lindsay'] : ROSTER;
+    S.client = S.client || 'Lindsay';
+    S.videos = demoVideos(S.client);
+    S.synced = null; S.error = null; S.loading = false;
+    return render();
+  }
+  const p = new URLSearchParams();
+  if (KEY) p.set('k', KEY);
+  else {
+    if (TEAM) p.set('team', TEAM);
+    if (S.client) p.set('client', S.client);
+  }
+  if (fresh) p.set('fresh', '1');
+  try {
+    const r = await fetch('/api/stats?' + p.toString());
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('The stats service returned ' + r.status));
+    S.client = j.client; S.clients = j.clients || []; S.portal = !!j.portal;
+    S.videos = j.videos || []; S.synced = j.syncedAt; S.error = null;
+  } catch (e) {
+    S.error = e.message || String(e);
+  }
+  S.loading = false;
+  render();
+}
+
+function pickClient(name) {
+  if (name === S.client) return;
+  S.client = name; S.selId = null; S.loading = true;
+  if (!S.portal) {
+    const u = new URL(location.href);
+    u.searchParams.set('client', name);
+    history.replaceState(null, '', u);
+  }
+  render();
+  load();
+}
+
+/* ---------- rendering ---------- */
+function deltaChip(cur, prev, points) {
+  if (prev == null || !isFinite(prev) || (!points && prev === 0)) return '';
+  const d = points ? cur - prev : (cur - prev) / prev * 100;
+  const up = d >= 0;
+  const txt = (up ? '+' : '') + d.toFixed(1) + (points ? ' pts' : '%');
+  return `<span class="delta ${up ? 'up' : 'dn'}">${txt}</span>`;
+}
+
+function render() {
+  const portal = S.portal;
+  $('title').textContent = portal && S.client ? S.client + "'s content" : 'Content OS';
+  document.title = (portal && S.client ? S.client + ' · ' : '') + 'Content OS · NOOCAP';
+  $('demoTag').hidden = !S.demo;
+
+  const names = S.clients.length ? S.clients : ROSTER;
+  $('clients').hidden = portal;
+  $('clients').innerHTML = names.map(n =>
+    `<button type="button" data-act="client" data-v="${esc(n)}" class="${n === S.client ? 'on' : ''}" aria-pressed="${n === S.client}">${esc(n)}</button>`).join('');
+
+  $('ranges').innerHTML = Object.keys(RANGES).map(k =>
+    `<button type="button" data-act="range" data-v="${k}" class="${k === S.range ? 'on' : ''}" aria-pressed="${k === S.range}">${k.toUpperCase()}</button>`).join('');
+
+  $('sync').innerHTML = S.demo ? '<i></i>Showing sample numbers' : S.synced ? '<i></i>Synced ' + ago(S.synced) : '';
+
+  if (S.loading || S.error) {
+    $('kpis').innerHTML = ''; $('plats').innerHTML = ''; $('detail').hidden = true;
+    $('board').innerHTML = S.loading
+      ? `<div class="state">Loading ${esc(S.client || 'client')}'s videos…</div>`
+      : `<div class="state"><div>Couldn't load the stats. ${esc(S.error)}</div>
+          <div class="btns"><button type="button" class="btn pri" data-act="retry">Try again</button>
+          ${portal ? '' : '<button type="button" class="btn" data-act="demo">Show sample data</button>'}</div></div>`;
+    return;
+  }
+  $('detail').hidden = false;
+
+  const N = RANGES[S.range];
+  const vids = S.videos.map(v => Object.assign({}, v, { age: ageOf(v.posted) }));
+  const byPlat = v => S.platform === 'all' || v.plat === S.platform;
+  const inRange = vids.filter(v => v.age <= N);
+  const list = inRange.filter(byPlat);
+  const prev = N < 90 ? vids.filter(v => v.age > N && v.age <= 2 * N && byPlat(v)) : null;
+
+  // KPI band
+  const sum = (a, f) => a.reduce((t, v) => t + f(v), 0);
+  const tv = sum(list, v => v.views), te = sum(list, eng);
+  const pv = prev ? sum(prev, v => v.views) : null, pe = prev ? sum(prev, eng) : null;
+  const er = tv ? te / tv * 100 : 0, per = prev && pv ? pe / pv * 100 : null;
+  const avg = list.length ? tv / list.length : 0, pavg = prev && prev.length ? pv / prev.length : null;
+  const vsTxt = N < 90 ? 'vs videos posted in the previous ' + N + ' days' : 'videos posted in the last 90 days';
+  const kpis = [
+    { l: 'Total views', v: fmt(tv), d: deltaChip(tv, pv), s: list.length + (list.length === 1 ? ' video, ' : ' videos, ') + vsTxt },
+    { l: 'Engagements', v: fmt(te), d: deltaChip(te, pe), s: 'likes, comments, shares and saves added up' },
+    { l: 'Engagement rate', v: tv ? er.toFixed(1) + '%' : '–', d: tv ? deltaChip(er, per, true) : '', s: 'engagements divided by views' },
+    { l: 'Avg views per video', v: list.length ? fmt(avg) : '–', d: deltaChip(avg, pavg), s: vsTxt }
+  ];
+  $('kpis').innerHTML = kpis.map(k => `<div class="card kpi"><span class="lbl">${k.l}</span>
+    <div class="row"><span class="v">${k.v}</span>${k.d}</div><span class="sub">${k.s}</span></div>`).join('');
+
+  // Platform cards (they double as the platform filter)
+  const rv = sum(inRange, v => v.views) || 1;
+  const cards = [{ k: 'all', name: 'All platforms', color: '#ECEAE4', vs: inRange }]
+    .concat(Object.keys(P).map(k => ({ k, name: P[k].name, color: P[k].color, vs: inRange.filter(v => v.plat === k) })));
+  $('plats').innerHTML = cards.map(c => {
+    const s = sum(c.vs, v => v.views);
+    const pct = c.k === 'all' ? 100 : Math.round(s / rv * 100);
+    return `<button type="button" class="plat ${S.platform === c.k ? 'on' : ''}" data-act="plat" data-v="${c.k}" aria-pressed="${S.platform === c.k}">
+      <span class="top"><span class="dot" style="background:${c.color}"></span>${c.name}<span class="n">${c.vs.length} videos</span></span>
+      <span class="v">${fmt(s)} <span>views</span></span>
+      <span class="track"><i style="width:${pct}%;background:${c.color}"></i></span></button>`;
+  }).join('');
+
+  // Chart + table
+  const ranked = list.slice().sort((a, b) => b.views - a.views);
+  const rank = {}; ranked.forEach((v, i) => { rank[v.id] = i + 1; });
+  const sorted = S.sort === 'top' ? ranked : list.slice().sort((a, b) => b.age - a.age);
+  const sel = sorted.find(v => v.id === S.selId) || ranked[0] || null;
+  const maxV = Math.max(1, ...sorted.map(v => v.views));
+  const platLabel = S.platform === 'all' ? 'all platforms' : P[S.platform].name;
+
+  let board = `<div class="bhead"><div><h2>Video performance</h2>
+      <p>${esc(S.client)}, ${platLabel}, last ${N} days. Click any bar or row for the full breakdown.</p></div>
+    <div class="seg sm"><button type="button" data-act="sort" data-v="top" class="${S.sort === 'top' ? 'on' : ''}">Top views</button>
+    <button type="button" data-act="sort" data-v="new" class="${S.sort === 'new' ? 'on' : ''}">Oldest to newest</button></div></div>`;
+
+  if (!sorted.length) {
+    board += `<div class="state">${S.videos.length
+      ? 'Nothing posted on ' + platLabel + ' in the last ' + N + ' days. Try a longer range or another platform.'
+      : 'No videos synced for ' + esc(S.client) + ' yet. They show up here after the next n8n run.'}</div>`;
+  } else {
+    board += `<div class="chart">${sorted.map(v => {
+      const on = sel && v.id === sel.id;
+      const h = Math.max(4, Math.round(v.views / maxV * 180));
+      return `<button type="button" class="bar ${on ? 'on' : ''}" data-act="sel" data-v="${esc(v.id)}" aria-label="${esc(v.title)}, ${fmt(v.views)} views on ${P[v.plat].name}">
+        <span class="val">${fmt(v.views)}</span>
+        <span class="col" style="height:${h}px;background:${P[v.plat].color}"></span>
+        <span class="ax">${S.sort === 'top' ? '#' + rank[v.id] : dateLabel(v.posted)}</span></button>`;
+    }).join('')}</div>
+    <div class="table">
+      <div class="tr th"><span>#</span><span>Video</span><span>Platform</span><span>Views</span><span class="hs">Likes</span><span class="hs">Comments</span><span class="hs">Shares</span><span class="hs">ER</span></div>
+      <div class="rows">${sorted.map(v => {
+        const on = sel && v.id === sel.id;
+        return `<button type="button" class="tr ${on ? 'on' : ''}" data-act="sel" data-v="${esc(v.id)}">
+          <span class="rk">${rank[v.id]}</span><span class="t">${esc(v.title)}</span>
+          <span class="p"><span class="dot" style="background:${P[v.plat].color}"></span>${P[v.plat].name}</span>
+          <span class="m hi">${fmt(v.views)}</span><span class="m hs">${fmt(v.likes)}</span>
+          <span class="m hs">${fmt(v.comments)}</span><span class="m hs">${v.shares == null ? 'n/a' : fmt(v.shares)}</span>
+          <span class="m er hs">${v.views ? (eng(v) / v.views * 100).toFixed(1) + '%' : '–'}</span></button>`;
+      }).join('')}</div></div>`;
+  }
+  $('board').innerHTML = board;
+
+  // Detail panel
+  if (!sel) {
+    $('detail').innerHTML = '<div class="state">Pick a video from the chart to see its full breakdown.</div>';
+    return;
+  }
+  const c = P[sel.plat].color;
+  const ratio = sel.views / Math.max(1, avg);
+  const vsAvg = ratio >= 1 ? ratio.toFixed(1) + '× the average for this range' : Math.round(ratio * 100) + '% of the average for this range';
+  const watch = sel.watch == null ? 'n/a' : sel.watch >= 60 ? Math.floor(sel.watch / 60) + 'm ' + (sel.watch % 60) + 's' : sel.watch + 's';
+  const parts = [['Likes', sel.likes], ['Comments', sel.comments], ['Shares', sel.shares], ['Saves', sel.saves]];
+  const maxE = Math.max(1, ...parts.map(p => p[1] || 0));
+  const hist = (sel.history || []).slice().sort((a, b) => (a.d < b.d ? -1 : 1)).slice(0, 7);
+  const gains = hist.map((p, i) => Math.max(0, i ? p.v - hist[i - 1].v : p.v));
+  const maxG = Math.max(1, ...gains);
+
+  $('detail').innerHTML = `
+    <div class="dhead"><span class="chip" style="background:${c}22;color:${c}"><span class="dot" style="background:${c}"></span>${P[sel.plat].name}</span>
+      <span class="when">Posted ${dateLabel(sel.posted)}, ${sel.age === 0 ? 'today' : sel.age === 1 ? '1 day ago' : sel.age + ' days ago'}</span></div>
+    <h3>${esc(sel.title)}</h3>
+    <div class="bigrow"><div><div class="big">${full(sel.views)}</div><div class="bigsub">views, ${vsAvg}</div></div>
+      ${sel.url ? `<a class="open" href="${esc(sel.url)}" target="_blank" rel="noopener">Open on ${P[sel.plat].name}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></a>` : ''}</div>
+    <div class="metrics">
+      <div class="metric"><span class="lbl">Likes</span><b>${full(sel.likes)}</b></div>
+      <div class="metric"><span class="lbl">Comments</span><b>${full(sel.comments)}</b></div>
+      <div class="metric"><span class="lbl">Shares</span><b>${na(sel.shares)}</b></div>
+      <div class="metric"><span class="lbl">Saves</span><b>${na(sel.saves)}</b></div>
+      <div class="metric"><span class="lbl">Avg watch</span><b>${watch}</b></div>
+      <div class="metric"><span class="lbl">Eng. rate</span><b>${sel.views ? (eng(sel) / sel.views * 100).toFixed(1) + '%' : '–'}</b></div>
+    </div>
+    <div class="sec"><h4>Engagement breakdown</h4>
+      ${parts.map(([l, n]) => `<div class="eng"><span class="l">${l}</span><span class="tk"><i style="width:${n == null ? 0 : Math.round(n / maxE * 100)}%;background:${c}"></i></span><span class="n">${n == null ? 'n/a' : fmt(n)}</span></div>`).join('')}
+    </div>
+    <div class="sec"><h4>Views in the first 7 days</h4>
+      ${gains.length ? `<div class="days">${gains.map((g, i) => `<div class="day"><span>${fmt(g)}</span><i style="height:${Math.max(3, Math.round(g / maxG * 70))}px;background:${c}"></i><span>D${i + 1}</span></div>`).join('')}</div>`
+        : '<p class="note">Daily views build up from the first few syncs after posting, so older videos added later won\'t have this chart.</p>'}
+    </div>
+    ${sel.topComments && sel.topComments.length ? `<div class="sec"><h4>Latest comments</h4>${sel.topComments.map(m => `<div class="cm"><b>${esc(m.u)}</b><span>${esc(m.t)}</span></div>`).join('')}</div>` : ''}`;
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const v = b.dataset.v;
+  switch (b.dataset.act) {
+    case 'client': pickClient(v); break;
+    case 'range': S.range = v; S.selId = null; render(); break;
+    case 'plat': S.platform = v; S.selId = null; render(); break;
+    case 'sort': S.sort = v; render(); break;
+    case 'sel':
+      S.selId = v; render();
+      if (window.innerWidth <= 1180) $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      break;
+    case 'retry': S.loading = true; S.error = null; render(); load(true); break;
+    case 'demo': S.demo = true; S.loading = true; render(); load(); break;
+  }
+});
+
+load();
+setInterval(() => { if (!S.demo && !document.hidden) load(); }, 5 * 60 * 1000);
+</script>
+</body>
+</html>
