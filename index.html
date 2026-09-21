@@ -90,6 +90,9 @@ button.tr.on{background:#22262C}
 .tr .m{font-family:var(--mono);color:var(--tx2)}
 .tr .m.hi{color:var(--tx)}
 .tr .m.er{color:var(--ac)}
+.fmt{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:2px 6px;border-radius:4px;margin-right:8px;vertical-align:1px;border:1px solid #3A3F48;color:var(--mu)}
+.fmt.s{color:#F5B971;border-color:rgba(245,185,113,.45);background:rgba(245,185,113,.08)}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap}
 
 aside{width:470px;flex-shrink:0;padding:22px;display:flex;flex-direction:column;gap:20px;border-radius:16px;position:sticky;top:20px}
 .dhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -189,7 +192,7 @@ const S = {
   clients: [],
   portal: !!KEY,
   demo: qs.get('demo') === '1',
-  platform: 'all', range: '30d', sort: 'top', selId: null,
+  platform: 'all', format: 'all', range: '30d', sort: 'top', selId: null,
   videos: [], synced: null, loading: true, error: null
 };
 
@@ -280,6 +283,7 @@ function demoVideos(client) {
       shares: plat === 'yt' && r() > 0.5 ? null : Math.round(likes * (0.04 + r() * 0.22)),
       saves: plat === 'ig' ? Math.round(likes * (0.1 + r() * 0.3)) : null,
       watch: plat === 'yt' ? Math.round(40 + r() * 220) : plat === 'fb' ? null : Math.round(6 + r() * 22),
+      format: plat === 'yt' ? (r() > 0.45 ? 'short' : 'long') : 'short',
       posted: day.toISOString().slice(0, 10),
       url: '',
       history,
@@ -367,9 +371,13 @@ function render() {
   $('detail').hidden = false;
 
   const N = RANGES[S.range];
-  const vids = S.videos.map(v => Object.assign({}, v, { age: ageOf(v.posted) }));
-  const byPlat = v => S.platform === 'all' || v.plat === S.platform;
-  const inRange = vids.filter(v => v.age <= N);
+  const vids = S.videos.map(v => Object.assign({}, v, {
+    age: ageOf(v.posted),
+    format: v.format || (v.plat === 'tt' || v.plat === 'ig' ? 'short' : 'long')
+  }));
+  const byFmt = v => S.format === 'all' || v.format === S.format;
+  const byPlat = v => (S.platform === 'all' || v.plat === S.platform) && byFmt(v);
+  const inRange = vids.filter(v => v.age <= N && byFmt(v));
   const list = inRange.filter(byPlat);
   const prev = N < 90 ? vids.filter(v => v.age > N && v.age <= 2 * N && byPlat(v)) : null;
 
@@ -408,12 +416,16 @@ function render() {
   const sorted = S.sort === 'top' ? ranked : list.slice().sort((a, b) => b.age - a.age);
   const sel = sorted.find(v => v.id === S.selId) || ranked[0] || null;
   const maxV = Math.max(1, ...sorted.map(v => v.views));
-  const platLabel = S.platform === 'all' ? 'all platforms' : P[S.platform].name;
+  const platLabel = (S.platform === 'all' ? 'all platforms' : P[S.platform].name) + (S.format === 'short' ? ', short-form only' : S.format === 'long' ? ', long-form only' : '');
+  const fmtTag = v => v.format === 'short' ? '<span class="fmt s">Short</span>' : '<span class="fmt">Long</span>';
 
   let board = `<div class="bhead"><div><h2>Video performance</h2>
       <p>${esc(S.client)}, ${platLabel}, last ${N} days. Click any bar or row for the full breakdown.</p></div>
+    <div class="ctrls">
+    <div class="seg sm" aria-label="Format">${[['all', 'All'], ['short', 'Short-form'], ['long', 'Long-form']].map(([k, l]) =>
+      `<button type="button" data-act="format" data-v="${k}" class="${S.format === k ? 'on' : ''}" aria-pressed="${S.format === k}">${l}</button>`).join('')}</div>
     <div class="seg sm"><button type="button" data-act="sort" data-v="top" class="${S.sort === 'top' ? 'on' : ''}">Top views</button>
-    <button type="button" data-act="sort" data-v="new" class="${S.sort === 'new' ? 'on' : ''}">Oldest to newest</button></div></div>`;
+    <button type="button" data-act="sort" data-v="new" class="${S.sort === 'new' ? 'on' : ''}">Oldest to newest</button></div></div></div>`;
 
   if (!sorted.length) {
     board += `<div class="state">${S.videos.length
@@ -423,7 +435,7 @@ function render() {
     board += `<div class="chart">${sorted.map(v => {
       const on = sel && v.id === sel.id;
       const h = Math.max(4, Math.round(v.views / maxV * 180));
-      return `<button type="button" class="bar ${on ? 'on' : ''}" data-act="sel" data-v="${esc(v.id)}" aria-label="${esc(v.title)}, ${fmt(v.views)} views on ${P[v.plat].name}">
+      return `<button type="button" class="bar ${on ? 'on' : ''}" data-act="sel" data-v="${esc(v.id)}" aria-label="${esc(v.title)}, ${v.format === 'short' ? 'short-form' : 'long-form'}, ${fmt(v.views)} views on ${P[v.plat].name}">
         <span class="val">${fmt(v.views)}</span>
         <span class="col" style="height:${h}px;background:${P[v.plat].color}"></span>
         <span class="ax">${S.sort === 'top' ? '#' + rank[v.id] : dateLabel(v.posted)}</span></button>`;
@@ -433,7 +445,7 @@ function render() {
       <div class="rows">${sorted.map(v => {
         const on = sel && v.id === sel.id;
         return `<button type="button" class="tr ${on ? 'on' : ''}" data-act="sel" data-v="${esc(v.id)}">
-          <span class="rk">${rank[v.id]}</span><span class="t">${esc(v.title)}</span>
+          <span class="rk">${rank[v.id]}</span><span class="t">${fmtTag(v)}${esc(v.title)}</span>
           <span class="p"><span class="dot" style="background:${P[v.plat].color}"></span>${P[v.plat].name}</span>
           <span class="m hi">${fmt(v.views)}</span><span class="m hs">${fmt(v.likes)}</span>
           <span class="m hs">${fmt(v.comments)}</span><span class="m hs">${v.shares == null ? 'n/a' : fmt(v.shares)}</span>
@@ -459,7 +471,7 @@ function render() {
 
   $('detail').innerHTML = `
     <div class="dhead"><span class="chip" style="background:${c}22;color:${c}"><span class="dot" style="background:${c}"></span>${P[sel.plat].name}</span>
-      <span class="when">Posted ${dateLabel(sel.posted)}, ${sel.age === 0 ? 'today' : sel.age === 1 ? '1 day ago' : sel.age + ' days ago'}</span></div>
+      ${fmtTag(sel)}<span class="when">Posted ${dateLabel(sel.posted)}, ${sel.age === 0 ? 'today' : sel.age === 1 ? '1 day ago' : sel.age + ' days ago'}</span></div>
     <h3>${esc(sel.title)}</h3>
     <div class="bigrow"><div><div class="big">${full(sel.views)}</div><div class="bigsub">views, ${vsAvg}</div></div>
       ${sel.url ? `<a class="open" href="${esc(sel.url)}" target="_blank" rel="noopener">Open on ${P[sel.plat].name}
@@ -491,6 +503,7 @@ document.addEventListener('click', e => {
     case 'client': pickClient(v); break;
     case 'range': S.range = v; S.selId = null; render(); break;
     case 'plat': S.platform = v; S.selId = null; render(); break;
+    case 'format': S.format = v; S.selId = null; render(); break;
     case 'sort': S.sort = v; render(); break;
     case 'sel':
       S.selId = v; render();
