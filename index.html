@@ -228,7 +228,7 @@ function dur(s) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
   return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
 }
-const eng = v => v.likes + v.comments + (v.shares || 0) + (v.saves || 0);
+const eng = v => (v.likes || 0) + (v.comments || 0) + (v.shares || 0) + (v.saves || 0);
 
 // All date maths runs on IST so the day boundary matches Mumbai.
 function todayIST() {
@@ -488,10 +488,10 @@ function render() {
       <div class="rows">${sorted.map(v => {
         const on = sel && v.id === sel.id;
         return `<button type="button" class="tr ${on ? 'on' : ''}" data-act="sel" data-v="${esc(v.id)}">
-          <span class="rk">${rank[v.id]}</span><span class="t">${v.thumb ? `<img class="mini ${v.format === 'short' ? 'v' : ''}" src="${esc(v.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}${fmtTag(v)}<span class="tt">${esc(v.title)}</span></span>
+          <span class="rk">${rank[v.id]}</span><span class="t">${v.thumb ? `<img class="mini ${v.format === 'short' ? 'v' : ''}" src="${esc(v.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}${fmtTag(v)}<span class="tt">${esc(v.title)}</span></span>
           <span class="p"><span class="dot" style="background:${P[v.plat].color}"></span>${P[v.plat].name}</span>
-          <span class="m hi">${fmt(v.views)}</span><span class="m hs">${fmt(v.likes)}</span>
-          <span class="m hs">${fmt(v.comments)}</span><span class="m hs">${v.shares == null ? 'n/a' : fmt(v.shares)}</span>
+          <span class="m hi">${fmt(v.views)}</span><span class="m hs">${v.likes == null ? 'n/a' : fmt(v.likes)}</span>
+          <span class="m hs">${v.comments == null ? 'n/a' : fmt(v.comments)}</span><span class="m hs">${v.shares == null ? 'n/a' : fmt(v.shares)}</span>
           <span class="m er hs">${v.views ? (eng(v) / v.views * 100).toFixed(1) + '%' : '–'}</span></button>`;
       }).join('')}</div></div>`;
   }
@@ -514,7 +514,7 @@ function render() {
 
   const hero = sel.thumb
     ? `<a class="hero ${sel.format === 'short' ? 'v' : ''}" href="${esc(sel.url || '#')}" target="_blank" rel="noopener" aria-label="Open video">
-        <img src="${esc(sel.thumb)}" alt="Thumbnail for ${esc(sel.title)}" referrerpolicy="no-referrer">
+        <img src="${esc(sel.thumb)}" alt="Thumbnail for ${esc(sel.title)}" referrerpolicy="no-referrer" onerror="this.closest('.hero').remove()">
         ${sel.duration ? `<span class="len">${dur(sel.duration)}</span>` : ''}</a>`
     : '';
   $('detail').innerHTML = `${hero}
@@ -525,8 +525,8 @@ function render() {
       ${sel.url ? `<a class="open" href="${esc(sel.url)}" target="_blank" rel="noopener">Open on ${P[sel.plat].name}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></svg></a>` : ''}</div>
     <div class="metrics">
-      <div class="metric"><span class="lbl">Likes</span><b>${full(sel.likes)}</b></div>
-      <div class="metric"><span class="lbl">Comments</span><b>${full(sel.comments)}</b></div>
+      <div class="metric"><span class="lbl">Likes</span><b>${na(sel.likes)}</b></div>
+      <div class="metric"><span class="lbl">Comments</span><b>${na(sel.comments)}</b></div>
       <div class="metric"><span class="lbl">Shares</span><b>${na(sel.shares)}</b></div>
       <div class="metric"><span class="lbl">Saves</span><b>${na(sel.saves)}</b></div>
       ${sel.watch == null && sel.duration
