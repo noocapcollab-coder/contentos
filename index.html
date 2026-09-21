@@ -36,7 +36,13 @@ header{display:flex;align-items:center;justify-content:space-between;gap:20px;fl
 .seg.sm{border-radius:10px}
 .seg.sm button{height:32px;padding:0 12px;border-radius:7px;font-family:var(--mono);font-size:12px;color:var(--mu)}
 .seg.sm button.on{background:var(--line);color:var(--tx)}
-.right{display:flex;align-items:center;gap:14px}
+.right{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.dates{display:flex;align-items:center;gap:4px;padding:4px 6px;background:var(--s1);border:1px solid var(--line);border-radius:10px}
+.dates label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mu2);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;padding-left:6px}
+.dates input{height:32px;background:transparent;border:0;color:var(--tx);font-family:var(--mono);font-size:12px;color-scheme:dark;padding:0 6px;border-radius:7px;cursor:pointer}
+.dates input:hover{background:var(--s2)}
+.dates input:focus-visible{outline:2px solid var(--ac);outline-offset:0}
+.dates .sep{color:var(--mu2);padding:0 2px}
 .sync{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mu);white-space:nowrap}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--ac)}
 
@@ -166,7 +172,11 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
     </div>
     <nav class="seg" id="clients" aria-label="Clients"></nav>
     <div class="right">
-      <div class="seg sm" id="ranges" aria-label="Date range"></div>
+      <div class="dates" role="group" aria-label="Date range">
+        <label>From <input type="date" id="dFrom" aria-label="Start date"></label>
+        <span class="sep">–</span>
+        <label>To <input type="date" id="dTo" aria-label="End date"></label>
+      </div>
       <span class="sync" id="sync"></span>
     </div>
   </header>
@@ -188,7 +198,6 @@ const P = {
   fb: { name: 'Facebook',  color: '#7B9EF0' }
 };
 const ROSTER = ['Brad', 'Chris', 'Lindsay', 'Duncan', 'Valeri', 'Emtech', 'David', 'Nicole'];
-const RANGES = { '7d': 7, '30d': 30, '90d': 90 };
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const qs = new URLSearchParams(location.search);
@@ -200,7 +209,7 @@ const S = {
   clients: [],
   portal: !!KEY,
   demo: qs.get('demo') === '1',
-  platform: 'all', format: 'all', range: '30d', sort: 'top', selId: null,
+  platform: 'all', format: 'all', from: null, to: null, sort: 'top', selId: null,
   videos: [], synced: null, loading: true, error: null
 };
 
@@ -225,6 +234,21 @@ const eng = v => v.likes + v.comments + (v.shares || 0) + (v.saves || 0);
 function todayIST() {
   const d = new Date(Date.now() + 5.5 * 3600e3);
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+const isoOf = ms => new Date(ms).toISOString().slice(0, 10);
+const msOf = s => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+const TODAY = () => isoOf(todayIST());
+// Days in the picked range, plus the same-length window just before it (for the deltas)
+function span() {
+  const days = Math.round((msOf(S.to) - msOf(S.from)) / 864e5) + 1;
+  const prevTo = isoOf(msOf(S.from) - 864e5);
+  const prevFrom = isoOf(msOf(S.from) - days * 864e5);
+  return { days, prevFrom, prevTo };
+}
+function rangeLabel() {
+  const y = S.from.slice(0, 4) !== S.to.slice(0, 4);
+  const f = s => dateLabel(s) + (y ? ' ' + s.slice(0, 4) : '');
+  return S.from === S.to ? f(S.from) : f(S.from) + ' – ' + f(S.to);
 }
 function ageOf(iso) {
   if (!iso) return 9999;
@@ -307,6 +331,8 @@ function demoVideos(client) {
 }
 
 /* ---------- loading ---------- */
+if (!S.to) { S.to = qs.get('to') || TODAY(); S.from = qs.get('from') || isoOf(msOf(S.to) - 29 * 864e5); }
+
 async function load(fresh) {
   if (S.demo) {
     S.clients = S.portal ? [S.client || 'Lindsay'] : ROSTER;
@@ -321,6 +347,8 @@ async function load(fresh) {
     if (TEAM) p.set('team', TEAM);
     if (S.client) p.set('client', S.client);
   }
+  p.set('from', span().prevFrom);
+  p.set('to', S.to);
   if (fresh) p.set('fresh', '1');
   try {
     const r = await fetch('/api/stats?' + p.toString());
@@ -367,8 +395,9 @@ function render() {
   $('clients').innerHTML = names.map(n =>
     `<button type="button" data-act="client" data-v="${esc(n)}" class="${n === S.client ? 'on' : ''}" aria-pressed="${n === S.client}">${esc(n)}</button>`).join('');
 
-  $('ranges').innerHTML = Object.keys(RANGES).map(k =>
-    `<button type="button" data-act="range" data-v="${k}" class="${k === S.range ? 'on' : ''}" aria-pressed="${k === S.range}">${k.toUpperCase()}</button>`).join('');
+  const today = TODAY();
+  $('dFrom').value = S.from; $('dFrom').max = S.to;
+  $('dTo').value = S.to; $('dTo').min = S.from; $('dTo').max = today;
 
   $('sync').innerHTML = S.demo ? '<i></i>Showing sample numbers' : S.synced ? '<i></i>Synced ' + ago(S.synced) : '';
 
@@ -383,16 +412,17 @@ function render() {
   }
   $('detail').hidden = false;
 
-  const N = RANGES[S.range];
+  const { days: N, prevFrom, prevTo } = span();
+  const day = v => (v.posted || '').slice(0, 10);
   const vids = S.videos.map(v => Object.assign({}, v, {
     age: ageOf(v.posted),
     format: v.format || (v.plat === 'tt' || v.plat === 'ig' ? 'short' : 'long')
   }));
   const byFmt = v => S.format === 'all' || v.format === S.format;
   const byPlat = v => (S.platform === 'all' || v.plat === S.platform) && byFmt(v);
-  const inRange = vids.filter(v => v.age <= N && byFmt(v));
+  const inRange = vids.filter(v => day(v) >= S.from && day(v) <= S.to && byFmt(v));
   const list = inRange.filter(byPlat);
-  const prev = N < 90 ? vids.filter(v => v.age > N && v.age <= 2 * N && byPlat(v)) : null;
+  const prev = vids.filter(v => day(v) >= prevFrom && day(v) <= prevTo && byPlat(v));
 
   // KPI band
   const sum = (a, f) => a.reduce((t, v) => t + f(v), 0);
@@ -400,7 +430,7 @@ function render() {
   const pv = prev ? sum(prev, v => v.views) : null, pe = prev ? sum(prev, eng) : null;
   const er = tv ? te / tv * 100 : 0, per = prev && pv ? pe / pv * 100 : null;
   const avg = list.length ? tv / list.length : 0, pavg = prev && prev.length ? pv / prev.length : null;
-  const vsTxt = N < 90 ? 'vs videos posted in the previous ' + N + ' days' : 'videos posted in the last 90 days';
+  const vsTxt = 'vs the ' + (N === 1 ? 'day' : N + ' days') + ' before';
   const kpis = [
     { l: 'Total views', v: fmt(tv), d: deltaChip(tv, pv), s: list.length + (list.length === 1 ? ' video, ' : ' videos, ') + vsTxt },
     { l: 'Engagements', v: fmt(te), d: deltaChip(te, pe), s: 'likes, comments, shares and saves added up' },
@@ -433,7 +463,7 @@ function render() {
   const fmtTag = v => v.format === 'short' ? '<span class="fmt s">Short</span>' : '<span class="fmt">Long</span>';
 
   let board = `<div class="bhead"><div><h2>Video performance</h2>
-      <p>${esc(S.client)}, ${platLabel}, last ${N} days. Click any bar or row for the full breakdown.</p></div>
+      <p>${esc(S.client)}, ${platLabel}, ${rangeLabel()}. Click any bar or row for the full breakdown.</p></div>
     <div class="ctrls">
     <div class="seg sm" aria-label="Format">${[['all', 'All'], ['short', 'Short-form'], ['long', 'Long-form']].map(([k, l]) =>
       `<button type="button" data-act="format" data-v="${k}" class="${S.format === k ? 'on' : ''}" aria-pressed="${S.format === k}">${l}</button>`).join('')}</div>
@@ -442,7 +472,7 @@ function render() {
 
   if (!sorted.length) {
     board += `<div class="state">${S.videos.length
-      ? 'Nothing posted on ' + platLabel + ' in the last ' + N + ' days. Try a longer range or another platform.'
+      ? 'Nothing posted on ' + platLabel + ' between ' + rangeLabel() + '. Try wider dates or another platform.'
       : 'No videos synced for ' + esc(S.client) + ' yet. They show up here after the next n8n run.'}</div>`;
   } else {
     board += `<div class="chart">${sorted.map(v => {
@@ -521,7 +551,6 @@ document.addEventListener('click', e => {
   const v = b.dataset.v;
   switch (b.dataset.act) {
     case 'client': pickClient(v); break;
-    case 'range': S.range = v; S.selId = null; render(); break;
     case 'plat': S.platform = v; S.selId = null; render(); break;
     case 'format': S.format = v; S.selId = null; render(); break;
     case 'sort': S.sort = v; render(); break;
@@ -533,6 +562,21 @@ document.addEventListener('click', e => {
     case 'demo': S.demo = true; S.loading = true; render(); load(); break;
   }
 });
+
+function setDates(from, to) {
+  const today = TODAY();
+  if (!from || !to) return;
+  if (to > today) to = today;
+  if (from > to) [from, to] = [to, from];
+  if (from === S.from && to === S.to) return;
+  S.from = from; S.to = to; S.selId = null;
+  const u = new URL(location.href);
+  u.searchParams.set('from', from); u.searchParams.set('to', to);
+  history.replaceState(null, '', u);
+  S.loading = true; render(); load();
+}
+$('dFrom').addEventListener('change', e => setDates(e.target.value, S.to));
+$('dTo').addEventListener('change', e => setDates(S.from, e.target.value));
 
 load();
 setInterval(() => { if (!S.demo && !document.hidden) load(); }, 5 * 60 * 1000);
