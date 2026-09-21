@@ -66,8 +66,7 @@ function normalize(page) {
   };
 }
 
-async function fetchClient(name) {
-  const since = new Date(Date.now() + 5.5 * 3600e3 - DAYS_BACK * 864e5).toISOString().slice(0, 10);
+async function fetchClient(name, since, until) {
   const rows = [];
   let cursor;
   do {
@@ -77,7 +76,8 @@ async function fetchClient(name) {
       body: JSON.stringify({
         filter: { and: [
           { property: 'Client', select: { equals: name } },
-          { property: 'Posted', date: { on_or_after: since } }
+          { property: 'Posted', date: { on_or_after: since } },
+          { property: 'Posted', date: { on_or_before: until } }
         ] },
         sorts: [{ property: 'Posted', direction: 'descending' }],
         page_size: 100,
@@ -114,13 +114,22 @@ export default async function handler(req, res) {
     client = c.name;
   }
 
+  // Date window (IST). The page asks for its range plus the period before it.
+  const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+  const today = new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+  let until = isDate(q.to) ? String(q.to) : today;
+  let since = isDate(q.from) ? String(q.from) : new Date(Date.parse(until) - DAYS_BACK * 864e5).toISOString().slice(0, 10);
+  if (since > until) [since, until] = [until, since];
+  const ckey = `${client}|${since}|${until}`;
+
   try {
-    const hit = cache.get(client);
+    const hit = cache.get(ckey);
     let videos;
     if (hit && !q.fresh && Date.now() - hit.at < CACHE_MS) videos = hit.videos;
     else {
-      videos = await fetchClient(client);
-      cache.set(client, { at: Date.now(), videos });
+      videos = await fetchClient(client, since, until);
+      if (cache.size > 200) cache.clear();
+      cache.set(ckey, { at: Date.now(), videos });
     }
     const syncedAt = videos.reduce((m, v) => (v.synced && v.synced > m ? v.synced : m), '') || null;
     res.setHeader('Cache-Control', 'private, max-age=0');
