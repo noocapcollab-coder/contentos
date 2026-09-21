@@ -51,6 +51,8 @@ function normalize(page) {
     plat: PLAT[platName] || 'ig',
     format: choice(prop(p, 'Format')).toLowerCase() || null,
     url: (urlProp && urlProp.url) || '',
+    thumb: (prop(p, 'Thumbnail') || {}).url || '',
+    duration: num(prop(p, 'Duration (sec)')),
     posted: dateOf(prop(p, 'Posted')),
     views: num(prop(p, 'Views')) || 0,
     likes: num(prop(p, 'Likes')) || 0,
