@@ -48,7 +48,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:20px;fl
 .dates input:hover{background:var(--s2)}
 .dates input:focus-visible{outline:2px solid var(--ac);outline-offset:0}
 .dates .sep{color:var(--mu2);padding:0 2px}
-.sync{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mu);white-space:nowrap}
+.sync{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mu);white-space:nowrap;background:none;border:0;padding:6px 8px;border-radius:8px}
+button.sync:hover{color:var(--tx2);background:var(--s1)}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--ac)}
 
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
@@ -197,7 +198,7 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
         <span class="sep">–</span>
         <label>To <input type="date" id="dTo" aria-label="End date"></label>
       </div>
-      <span class="sync" id="sync"></span>
+      <button type="button" class="sync" id="sync" data-act="refresh" title="Check Notion for new data"></button>
     </div>
   </header>
 
@@ -431,7 +432,9 @@ async function prefetch() {
   prefetching = false;
 }
 
+let firstLoad = qs.get('fresh') === '1';
 async function load(fresh) {
+  if (firstLoad) { firstLoad = false; fresh = true; }
   if (S.demo) {
     S.clients = S.portal ? [S.client || 'Lindsay'] : ROSTER;
     S.client = S.client || 'Lindsay';
@@ -499,7 +502,9 @@ function render() {
   $('dTo').value = S.to; $('dTo').min = S.from; $('dTo').max = today;
 
   $('sync').className = 'sync' + (busy ? ' soft' : '');
-  $('sync').innerHTML = S.demo ? '<i></i>Showing sample numbers' : S.synced ? '<i></i>Synced ' + ago(S.synced) : '';
+  $('sync').innerHTML = S.demo ? '<i></i>Showing sample numbers'
+    : busy ? '<i></i>Checking for new data…'
+    : S.synced ? '<i></i>Synced ' + ago(S.synced) : '<i></i>Refresh';
 
   if (S.loading || S.error) {
     $('kpis').innerHTML = ''; $('plats').innerHTML = ''; $('audience').innerHTML = ''; $('detail').hidden = true;
@@ -692,6 +697,7 @@ document.addEventListener('click', e => {
       S.selId = v; render();
       if (window.innerWidth <= 1180) $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
       break;
+    case 'refresh': CACHE.clear(); load(true); break;
     case 'retry': S.loading = true; S.error = null; render(); load(true); break;
     case 'demo': S.demo = true; S.loading = true; render(); load(); break;
   }
