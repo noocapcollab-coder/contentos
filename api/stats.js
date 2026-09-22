@@ -6,13 +6,15 @@
 //   Skip cache:   add &fresh=1
 //
 // Env vars in Vercel: NOTION_TOKEN, STATS_DS (the CONTENT STATS data source id),
-// and optionally TEAM_KEY to stop outsiders opening the team view.
+// and optionally TEAM_KEY to stop outsiders opening the team view. Follower counts
+// come from the AUDIENCE database, whose id is below (override with AUDIENCE_DS).
 
 import { CLIENTS, clientByKey, clientByName } from '../lib/clients.js';
 
 const NOTION = 'https://api.notion.com/v1';
 const DAYS_BACK = 90;
 const CACHE_MS = 5 * 60000; // the syncs run daily/weekly, so five minutes is plenty
+const AUDIENCE_DS = process.env.AUDIENCE_DS || 'cdda768f-23b4-4a6e-b410-b5f645c259aa';
 const cache = new Map();
 
 const headers = () => ({
@@ -64,6 +66,31 @@ function normalize(page) {
     topComments: Array.isArray(comments) ? comments.slice(0, 3) : [],
     synced: dateOf(prop(p, 'Last Synced')) || page.last_edited_time
   };
+}
+
+// Follower / subscriber counts for one client, one row per platform.
+async function fetchAudience(name) {
+  const r = await fetch(`${NOTION}/data_sources/${AUDIENCE_DS}/query`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ filter: { property: 'Client', select: { equals: name } }, page_size: 20 })
+  });
+  const j = await r.json();
+  if (!r.ok) return [];   // the dashboard works fine without these
+  return (j.results || []).map(page => {
+    const p = page.properties || {};
+    let history = [];
+    try { history = JSON.parse(text(prop(p, 'Followers History')) || '[]'); } catch (e) { history = []; }
+    return {
+      plat: PLAT[choice(prop(p, 'Platform')).toLowerCase()] || null,
+      handle: text(prop(p, 'Handle')),
+      url: (prop(p, 'Profile URL') || {}).url || '',
+      followers: num(prop(p, 'Followers')),
+      posts: num(prop(p, 'Posts')),
+      synced: dateOf(prop(p, 'Last Synced')) || page.last_edited_time,
+      history: Array.isArray(history) ? history : []
+    };
+  }).filter(x => x.plat && x.followers != null);
 }
 
 async function fetchClient(name, since, until) {
@@ -124,20 +151,25 @@ export default async function handler(req, res) {
 
   try {
     const hit = cache.get(ckey);
-    let videos;
-    if (hit && !q.fresh && Date.now() - hit.at < CACHE_MS) videos = hit.videos;
+    let videos, audience;
+    if (hit && !q.fresh && Date.now() - hit.at < CACHE_MS) { videos = hit.videos; audience = hit.audience; }
     else {
-      videos = await fetchClient(client, since, until);
+      [videos, audience] = await Promise.all([
+        fetchClient(client, since, until),
+        fetchAudience(client).catch(() => [])
+      ]);
       if (cache.size > 200) cache.clear();
-      cache.set(ckey, { at: Date.now(), videos });
+      cache.set(ckey, { at: Date.now(), videos, audience });
     }
-    const syncedAt = videos.reduce((m, v) => (v.synced && v.synced > m ? v.synced : m), '') || null;
+    const latest = rows => rows.reduce((m, x) => (x.synced && x.synced > m ? x.synced : m), '');
+    const syncedAt = (latest(videos) > latest(audience) ? latest(videos) : latest(audience)) || null;
     res.setHeader('Cache-Control', 'private, max-age=30');
     return res.status(200).json({
       client,
       portal,
       clients: portal ? [client] : CLIENTS.map(c => c.name),
       syncedAt,
+      audience,
       videos
     });
   } catch (e) {
