@@ -72,6 +72,19 @@ header{display:flex;align-items:center;justify-content:space-between;gap:20px;fl
 .plat .v{font-size:22px;font-weight:600;letter-spacing:-.02em}
 .plat .v span{font-size:12px;font-weight:400;color:var(--mu)}
 .track{width:100%;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.aud{padding:18px 22px;display:flex;flex-direction:column;gap:16px;border-radius:14px}
+.aud .hd{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.aud h2{margin:0;font-size:16px;font-weight:600}
+.aud .hd p{margin:3px 0 0;font-size:12px;color:var(--mu)}
+.aud .tot{display:flex;align-items:baseline;gap:10px}
+.aud .tot b{font-size:28px;font-weight:600;letter-spacing:-.02em}
+.aud .tot span{font-size:12px;color:var(--mu)}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.acard{background:var(--s2);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.acard .nm{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--tx2)}
+.acard .big{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1}
+.acard .sub{font-size:11px;color:var(--mu2);font-family:var(--mono)}
+.delta.sm{font-size:11px;padding:2px 6px;align-self:flex-start}
 .track i{display:block;height:100%}
 
 main{display:flex;gap:20px;align-items:flex-start}
@@ -146,6 +159,7 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
 .btn{height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--s2);font-size:13px}
 .btn.pri{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:500}
 
+@media (max-width:760px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:1180px){
   main{flex-direction:column;align-items:stretch}
   aside{width:auto;position:static}
@@ -189,6 +203,7 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
 
   <section class="kpis" id="kpis"></section>
   <section class="plats" id="plats" aria-label="Platforms"></section>
+  <section class="card aud" id="audience" aria-label="Audience"></section>
 
   <main>
     <div class="card board" id="board"></div>
@@ -216,7 +231,7 @@ const S = {
   portal: !!KEY,
   demo: qs.get('demo') === '1',
   platform: 'all', format: 'all', from: null, to: null, sort: 'top', selId: null,
-  videos: [], synced: null, loading: true, error: null
+  videos: [], audience: [], synced: null, loading: true, error: null
 };
 
 const $ = id => document.getElementById(id);
@@ -235,6 +250,14 @@ function dur(s) {
   return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0');
 }
 const eng = v => (v.likes || 0) + (v.comments || 0) + (v.shares || 0) + (v.saves || 0);
+
+// The last follower snapshot taken on or before a given day, so growth can be
+// measured across whatever dates are picked.
+function followersOn(hist, day) {
+  let best = null;
+  for (const x of hist || []) if (x.d <= day) best = x.v;
+  return best;
+}
 
 // All date maths runs on IST so the day boundary matches Mumbai.
 function todayIST() {
@@ -336,6 +359,18 @@ function demoVideos(client) {
   return out;
 }
 
+function demoAudience(client) {
+  const r = rng(client + 'aud');
+  return ['yt', 'tt', 'ig', 'fb'].map(plat => {
+    const now = Math.round(2000 + r() * 90000);
+    const hist = [];
+    for (let i = 120; i >= 0; i -= 5) {
+      hist.push({ d: isoOf(todayIST() - i * 864e5), v: Math.round(now * (1 - i * (0.0006 + r() * 0.0004))) });
+    }
+    return { plat, handle: '@' + client.toLowerCase(), url: '', followers: now, posts: Math.round(50 + r() * 600), history: hist };
+  });
+}
+
 /* ---------- loading ---------- */
 if (!S.to) { S.to = qs.get('to') || TODAY(); S.from = qs.get('from') || isoOf(msOf(S.to) - 29 * 864e5); }
 
@@ -362,7 +397,7 @@ function progress(on) {
 function useCache(name) {
   const hit = CACHE.get(name);
   if (!covers(hit)) return false;
-  S.videos = hit.videos; S.synced = hit.synced; S.error = null; S.loading = false;
+  S.videos = hit.videos; S.audience = hit.audience || []; S.synced = hit.synced; S.error = null; S.loading = false;
   return true;
 }
 
@@ -379,7 +414,7 @@ async function fetchClient(name, fresh) {
     const r = await fetch('/api/stats?' + p.toString());
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || ('The stats service returned ' + r.status));
-    CACHE.set(j.client, { videos: j.videos || [], synced: j.syncedAt, from, at: Date.now() });
+    CACHE.set(j.client, { videos: j.videos || [], audience: j.audience || [], synced: j.syncedAt, from, at: Date.now() });
     return j;
   } finally { progress(false); }
 }
@@ -401,6 +436,7 @@ async function load(fresh) {
     S.clients = S.portal ? [S.client || 'Lindsay'] : ROSTER;
     S.client = S.client || 'Lindsay';
     S.videos = demoVideos(S.client);
+    S.audience = demoAudience(S.client);
     S.synced = null; S.error = null; S.loading = false;
     return render();
   }
@@ -466,7 +502,7 @@ function render() {
   $('sync').innerHTML = S.demo ? '<i></i>Showing sample numbers' : S.synced ? '<i></i>Synced ' + ago(S.synced) : '';
 
   if (S.loading || S.error) {
-    $('kpis').innerHTML = ''; $('plats').innerHTML = ''; $('detail').hidden = true;
+    $('kpis').innerHTML = ''; $('plats').innerHTML = ''; $('audience').innerHTML = ''; $('detail').hidden = true;
     $('board').innerHTML = S.loading
       ? `<div class="state">Loading ${esc(S.client || 'client')}'s videos…</div>`
       : `<div class="state"><div>Couldn't load the stats. ${esc(S.error)}</div>
@@ -508,6 +544,18 @@ function render() {
   const rv = sum(inRange, v => v.views) || 1;
   const cards = [{ k: 'all', name: 'All platforms', color: '#ECEAE4', vs: inRange }]
     .concat(Object.keys(P).map(k => ({ k, name: P[k].name, color: P[k].color, vs: inRange.filter(v => v.plat === k) })));
+  const AUD = {};
+  (S.audience || []).forEach(a => { if (a && a.plat) AUD[a.plat] = a; });
+  function audience(k) {
+    const rows = k === 'all' ? Object.values(AUD) : (AUD[k] ? [AUD[k]] : []);
+    if (!rows.length) return null;
+    const now = rows.reduce((t, a) => t + (a.followers || 0), 0);
+    const seen = rows.map(a => followersOn(a.history, S.from));
+    const gain = seen.some(v => v == null) ? null
+      : now - seen.reduce((t, v) => t + v, 0);
+    return { now, gain, word: k === 'yt' ? 'subscribers' : 'followers' };
+  }
+
   $('plats').innerHTML = cards.map(c => {
     const s = sum(c.vs, v => v.views);
     const pct = c.k === 'all' ? 100 : Math.round(s / rv * 100);
@@ -516,6 +564,28 @@ function render() {
       <span class="v">${fmt(s)} <span>views</span></span>
       <span class="track"><i style="width:${pct}%;background:${c.color}"></i></span></button>`;
   }).join('');
+
+  // Audience block: followers per platform, with growth across the picked dates
+  const aRows = Object.keys(P).map(k => ({ k, name: P[k].name, color: P[k].color, a: AUD[k] }));
+  const known = aRows.filter(x => x.a);
+  const total = audience('all');
+  $('audience').innerHTML = `
+    <div class="hd">
+      <div><h2>Audience</h2><p>${known.length
+        ? 'Followers and subscribers, and how they moved over ' + rangeLabel() + '.'
+        : 'Follower counts land here after the next sync runs.'}</p></div>
+      ${total ? `<div class="tot"><b>${fmt(total.now)}</b><span>across ${known.length} platform${known.length === 1 ? '' : 's'}</span>${
+        total.gain ? `<span class="delta sm ${total.gain < 0 ? 'dn' : 'up'}">${total.gain > 0 ? '+' : ''}${fmt(total.gain)}</span>` : ''}</div>` : ''}
+    </div>
+    <div class="grid4">${aRows.map(x => {
+      const g = x.a ? audience(x.k) : null;
+      return `<div class="acard">
+        <span class="nm"><span class="dot" style="background:${x.color}"></span>${x.name}</span>
+        <span class="big">${x.a ? fmt(x.a.followers) : '–'}</span>
+        ${g && g.gain ? `<span class="delta sm ${g.gain < 0 ? 'dn' : 'up'}">${g.gain > 0 ? '+' : ''}${fmt(g.gain)} ${g.word}</span>`
+          : `<span class="sub">${x.a ? (x.a.posts ? x.a.posts + ' posts' : g ? g.word : '') : 'not synced yet'}</span>`}
+      </div>`;
+    }).join('')}</div>`;
 
   // Chart + table
   const ranked = list.slice().sort((a, b) => b.views - a.views);
