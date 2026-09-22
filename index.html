@@ -23,6 +23,11 @@ a{color:var(--ac);text-decoration:none}
 a:hover{color:#E2FF8F}
 
 .wrap{max-width:1480px;margin:0 auto;padding:28px 32px 40px;display:flex;flex-direction:column;gap:20px}
+#bar{position:fixed;top:0;left:0;right:0;height:2px;z-index:60;pointer-events:none;overflow:hidden}
+#bar::after{content:'';position:absolute;inset:0 auto 0 0;width:35%;background:var(--ac);opacity:0;transform:translateX(-100%)}
+body.busy #bar::after{opacity:.9;animation:sweep 1.1s ease-in-out infinite}
+@keyframes sweep{to{transform:translateX(385%)}}
+.sync.soft i{opacity:.35}
 
 header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -159,10 +164,11 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
   .big{font-size:38px}
   .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}#bar::after{animation:none}}
 </style>
 </head>
 <body>
+<div id="bar"></div>
 <div class="wrap">
   <header>
     <div class="brand">
@@ -333,6 +339,63 @@ function demoVideos(client) {
 /* ---------- loading ---------- */
 if (!S.to) { S.to = qs.get('to') || TODAY(); S.from = qs.get('from') || isoOf(msOf(S.to) - 29 * 864e5); }
 
+// Each client's videos are held in memory over a wide window, so switching
+// clients or changing the dates is instant and only the first visit waits on Notion.
+const CACHE = new Map();         // client -> { videos, synced, from, at }
+const WINDOW_DAYS = 365;         // how far back every fetch reaches
+const FRESH_MS = 3 * 60 * 1000;  // anything newer than this is served without a refresh
+let busy = 0, prefetching = false;
+
+function windowFrom() {
+  const wide = isoOf(todayIST() - WINDOW_DAYS * 864e5);
+  const need = span().prevFrom;
+  return need < wide ? need : wide;
+}
+const covers = hit => !!hit && hit.from <= windowFrom();
+
+function progress(on) {
+  busy = Math.max(0, busy + (on ? 1 : -1));
+  document.body.classList.toggle('busy', busy > 0);
+}
+
+// Paint from the cache when we already hold this client's videos.
+function useCache(name) {
+  const hit = CACHE.get(name);
+  if (!covers(hit)) return false;
+  S.videos = hit.videos; S.synced = hit.synced; S.error = null; S.loading = false;
+  return true;
+}
+
+async function fetchClient(name, fresh) {
+  const from = windowFrom();
+  const p = new URLSearchParams();
+  if (KEY) p.set('k', KEY);
+  else { if (TEAM) p.set('team', TEAM); if (name) p.set('client', name); }
+  p.set('from', from);
+  p.set('to', TODAY());
+  if (fresh) p.set('fresh', '1');
+  progress(true);
+  try {
+    const r = await fetch('/api/stats?' + p.toString());
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('The stats service returned ' + r.status));
+    CACHE.set(j.client, { videos: j.videos || [], synced: j.syncedAt, from, at: Date.now() });
+    return j;
+  } finally { progress(false); }
+}
+
+// Quietly warm the other clients once the first one is on screen.
+async function prefetch() {
+  if (prefetching || S.demo || S.portal || !S.clients.length) return;
+  prefetching = true;
+  for (const name of S.clients) {
+    if (name === S.client || covers(CACHE.get(name))) continue;
+    try { await fetchClient(name); } catch (e) { /* retried on the next load */ }
+    await new Promise(r => setTimeout(r, 400));
+  }
+  prefetching = false;
+}
+
 async function load(fresh) {
   if (S.demo) {
     S.clients = S.portal ? [S.client || 'Lindsay'] : ROSTER;
@@ -341,36 +404,36 @@ async function load(fresh) {
     S.synced = null; S.error = null; S.loading = false;
     return render();
   }
-  const p = new URLSearchParams();
-  if (KEY) p.set('k', KEY);
-  else {
-    if (TEAM) p.set('team', TEAM);
-    if (S.client) p.set('client', S.client);
+  const want = S.client;
+  const hit = CACHE.get(want);
+  if (covers(hit) && !fresh) {
+    useCache(want);
+    render();
+    if (Date.now() - hit.at < FRESH_MS) return prefetch();
   }
-  p.set('from', span().prevFrom);
-  p.set('to', S.to);
-  if (fresh) p.set('fresh', '1');
   try {
-    const r = await fetch('/api/stats?' + p.toString());
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error || ('The stats service returned ' + r.status));
-    S.client = j.client; S.clients = j.clients || []; S.portal = !!j.portal;
-    S.videos = j.videos || []; S.synced = j.syncedAt; S.error = null;
+    const j = await fetchClient(want, fresh);
+    S.clients = j.clients && j.clients.length ? j.clients : S.clients;
+    S.portal = !!j.portal;
+    if (!want || j.client === S.client) { S.client = j.client; useCache(j.client); }
+    S.error = null;
   } catch (e) {
-    S.error = e.message || String(e);
+    if (!covers(CACHE.get(S.client))) S.error = e.message || String(e);
   }
   S.loading = false;
   render();
+  prefetch();
 }
 
 function pickClient(name) {
   if (name === S.client) return;
-  S.client = name; S.selId = null; S.loading = true;
+  S.client = name; S.selId = null;
   if (!S.portal) {
     const u = new URL(location.href);
     u.searchParams.set('client', name);
     history.replaceState(null, '', u);
   }
+  S.loading = !useCache(name);   // cached clients appear with no wait at all
   render();
   load();
 }
@@ -399,6 +462,7 @@ function render() {
   $('dFrom').value = S.from; $('dFrom').max = S.to;
   $('dTo').value = S.to; $('dTo').min = S.from; $('dTo').max = today;
 
+  $('sync').className = 'sync' + (busy ? ' soft' : '');
   $('sync').innerHTML = S.demo ? '<i></i>Showing sample numbers' : S.synced ? '<i></i>Synced ' + ago(S.synced) : '';
 
   if (S.loading || S.error) {
@@ -573,6 +637,7 @@ function setDates(from, to) {
   const u = new URL(location.href);
   u.searchParams.set('from', from); u.searchParams.set('to', to);
   history.replaceState(null, '', u);
+  if (covers(CACHE.get(S.client))) { render(); return; }   // already loaded, just re-filter
   S.loading = true; render(); load();
 }
 $('dFrom').addEventListener('change', e => setDates(e.target.value, S.to));
