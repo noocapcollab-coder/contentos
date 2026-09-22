@@ -12,7 +12,7 @@ import { CLIENTS, clientByKey, clientByName } from '../lib/clients.js';
 
 const NOTION = 'https://api.notion.com/v1';
 const DAYS_BACK = 90;
-const CACHE_MS = 60000;
+const CACHE_MS = 5 * 60000; // the syncs run daily/weekly, so five minutes is plenty
 const cache = new Map();
 
 const headers = () => ({
@@ -132,7 +132,7 @@ export default async function handler(req, res) {
       cache.set(ckey, { at: Date.now(), videos });
     }
     const syncedAt = videos.reduce((m, v) => (v.synced && v.synced > m ? v.synced : m), '') || null;
-    res.setHeader('Cache-Control', 'private, max-age=0');
+    res.setHeader('Cache-Control', 'private, max-age=30');
     return res.status(200).json({
       client,
       portal,
