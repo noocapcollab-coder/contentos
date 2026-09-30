@@ -868,6 +868,7 @@ function winCard(s, all) {
     <div class="wtop">${thumb}
       <div class="wmeta">
         <div class="wline"><span class="score ${cls}" title="Average of each platform's views vs this creator's usual">${xLabel(s.score)} usual</span>
+          ${s.breakout ? `<span class="score win" title="At least 3× usual on this platform">${P[s.breakout].name} breakout ${xLabel(s.best.ratio)}</span>` : ''}
           <span>${all ? esc(s.client) + ' · ' : ''}${dateLabel(s.posted)}</span>${s.early ? '<span class="tag" title="Under 7 days old, still growing">EARLY</span>' : ''}
           ${s.er != null ? `<span>${s.er}% ER</span>` : ''}</div>
         <h3>${esc(s.title)}</h3>
@@ -899,7 +900,7 @@ function renderWinners() {
 
   $('wboard').innerHTML = `
     <div class="bhead"><div><h2>Winning scripts</h2>
-      <p>${esc(who)}, ${fmtName}, posted in the last ${W.days} days. A winner averages at least ${d.rules.win}× that creator's usual views on each platform it went out on, and posts are judged once they're ${d.rules.minAge} days old.</p></div>
+      <p>${esc(who)}, ${fmtName}, posted in the last ${W.days} days. A winner averages at least ${d.rules.win}× that creator's usual views across its platforms, or breaks out at ${d.rules.breakout || 3}× or more on one of them. Posts are judged once they're ${d.rules.minAge} days old.</p></div>
       <div class="ctrls">
         <div class="seg sm" aria-label="Window">${[7, 14, 21, 30, 60].map(n =>
           `<button type="button" data-act="wdays" data-v="${n}" class="${W.days === n ? 'on' : ''}" aria-pressed="${W.days === n}">${n}d</button>`).join('')}</div>
@@ -911,7 +912,7 @@ function renderWinners() {
       ${d.topics.map(t => `<button type="button" data-act="wtopic" data-v="${esc(t.name)}" class="${W.topic === t.name ? 'on' : ''}">${esc(t.name)}<span>${t.n}</span></button>`).join('')}</div>` : ''}
     <div class="wstats">
       <div class="acard"><span class="lbl">Scripts scored</span><b>${scored.length}</b><span class="sub">${young ? young + ' too new to judge' : 'of ' + list.length + ' posted'}</span></div>
-      <div class="acard"><span class="lbl">Winners</span><b style="color:var(--ac)">${wins.length}</b><span class="sub">${d.rules.win}× usual or better</span></div>
+      <div class="acard"><span class="lbl">Winners</span><b style="color:var(--ac)">${wins.length}</b><span class="sub">${d.rules.win}× average or a ${d.rules.breakout || 3}× breakout</span></div>
       <div class="acard"><span class="lbl">Underperformed</span><b style="color:var(--dn)">${flops.length}</b><span class="sub">${d.rules.flop}× usual or worse</span></div>
       <div class="acard"><span class="lbl">Hooks analysed</span><b>${a.analyzed}<span style="font-size:14px;color:var(--mu)"> / ${a.youtube}</span></b>
         <button type="button" class="btn ${a.analyzed < a.youtube ? 'pri' : ''}" data-act="wanalyze" ${W.running ? 'disabled' : ''}>${W.running ? 'Analysing…' : a.analyzed < a.youtube ? 'Analyse new videos' : 'Re-check for new'}</button></div>
