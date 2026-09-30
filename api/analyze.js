@@ -52,7 +52,11 @@ ${transcript ? '' : 'Without a transcript leave hook_line, structure and why as 
 async function askClaude(content) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json',
+      // Only needed for keys that aren't tied to a workspace.
+      ...(process.env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } : {})
+    },
     body: JSON.stringify({
       model: process.env.ANALYZE_MODEL || 'claude-haiku-4-5-20251001',
       max_tokens: 700,
@@ -103,7 +107,8 @@ async function runBatch(q, started, cron) {
   // The button asks for small batches so the page can show progress; a cron run
   // takes as many as fit in the time budget (two or three days of new videos).
   const n = cron ? 40 : Math.min(Math.max(parseInt(q.n, 10) || 6, 1), 12);
-  const lanes = cron ? 5 : 3;
+  // One video at a time: Supadata's small plans allow about one request a second.
+  const lanes = 1;
   const filter = { and: [
     { property: 'Platform', select: { equals: 'YouTube' } },
     { property: 'Analyzed', date: { is_empty: true } },
