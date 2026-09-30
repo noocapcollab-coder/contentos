@@ -2,10 +2,11 @@
 //
 //   /api/winners?team=<TEAM_KEY>&client=Duncan&days=30&format=short
 //   client can be a name or "all". Add &fresh=1 to skip the 5-minute cache.
+//   &plat=yt|tt|ig|fb judges every script on that one platform only.
 // Team view only: clients never see this.
 
 import { STATS_DS, queryAll, teamOk, todayIST, daysAgoIST } from '../lib/notion.js';
-import { normalizeRow, buildScripts, formatLibrary, WIN, FLOP, MIN_AGE, BREAKOUT } from '../lib/score.js';
+import { normalizeRow, buildScripts, formatLibrary, platformView, WIN, FLOP, MIN_AGE, BREAKOUT } from '../lib/score.js';
 import { CLIENTS, clientByName } from '../lib/clients.js';
 
 const LOOKBACK_DAYS = 120;
@@ -33,12 +34,14 @@ export default async function handler(req, res) {
   if (!all && !c) return res.status(400).json({ error: `No client called "${q.client}"` });
   const days = [7, 14, 21, 30, 60, 90].includes(+q.days) ? +q.days : 30;
   const format = q.format === 'long' ? 'long' : 'short';
+  const plat = ['yt', 'tt', 'ig', 'fb'].includes(q.plat) ? q.plat : 'all';
 
   try {
     const today = todayIST();
     const rows = await allRows(!!q.fresh);
     const scripts = buildScripts(rows, today);
-    const mine = scripts.filter(s => (all || s.client === c.name) && s.format === format);
+    // With a platform picked, every script is judged on that platform's numbers alone.
+    const mine = platformView(scripts.filter(s => (all || s.client === c.name) && s.format === format), plat);
     const inWindow = mine.filter(s => s.age <= days);
     // The library looks at the last 90 days whatever window is picked, so it has enough to go on.
     const library = formatLibrary(mine.filter(s => s.age <= 90));
@@ -51,7 +54,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       client: all ? 'all' : c.name,
       clients: CLIENTS.map(x => x.name),
-      days, format,
+      days, format, plat,
       rules: { win: WIN, flop: FLOP, minAge: MIN_AGE, breakout: BREAKOUT },
       scripts: inWindow.sort((a, b) => (b.score ?? -1) - (a.score ?? -1)),
       library,
