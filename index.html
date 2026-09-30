@@ -160,6 +160,61 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
 .btn{height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--s2);font-size:13px}
 .btn.pri{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:500}
 
+/* ---------- Winners tab ---------- */
+.views{border-radius:10px}
+.wstats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.wstats .acard b{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1}
+.wstats .acard .btn{margin-top:4px;height:34px;align-self:flex-start}
+.run{font-size:12px;color:var(--mu);line-height:1.5}
+.run.warn{color:var(--dn)}
+.topics{display:flex;gap:6px;flex-wrap:wrap}
+.topics button{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--tx2);font-size:12px}
+.topics button.on{background:var(--ac);border-color:var(--ac);color:var(--bg);font-weight:500}
+.topics button span{font-family:var(--mono);font-size:11px;opacity:.7;margin-left:4px}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.wcard{background:var(--s2);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.wtop{display:flex;gap:14px;min-width:0}
+.wthumb{width:66px;height:117px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--s1)}
+.wthumb.l{width:120px;height:68px}
+.wthumb.ph{display:flex;align-items:center;justify-content:center;color:var(--mu2);font-family:var(--mono);font-size:10px}
+.wmeta{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
+.wline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--mu)}
+.score{font-family:var(--mono);font-size:12px;font-weight:500;padding:3px 8px;border-radius:6px;white-space:nowrap}
+.score.win{color:var(--ac);background:rgba(201,242,92,.14)}
+.score.ok{color:var(--tx2);background:var(--line)}
+.score.flop{color:var(--dn);background:rgba(242,139,122,.14)}
+.wcard h3{margin:0;font-size:15px;line-height:1.35;font-weight:600}
+.pl{display:flex;gap:6px;flex-wrap:wrap}
+.pl a,.pl span.pp{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--tx2);padding:3px 7px;border-radius:6px;background:var(--s1)}
+.pl a:hover{color:var(--tx)}
+.pl i{font-style:normal;color:var(--mu2)}
+.hook{background:var(--s1);border-left:3px solid var(--ac);border-radius:0;padding:10px 12px;font-size:14px;line-height:1.5}
+.flopcard .hook{border-left-color:var(--dn)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips span{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid #3A3F48;color:var(--tx2)}
+.chips span.ht{border-color:rgba(201,242,92,.4);color:var(--ac)}
+.kv{display:flex;flex-direction:column;gap:4px}
+.kv p{margin:0;font-size:13px;line-height:1.5;color:var(--tx2)}
+details.tx summary{cursor:pointer;font-size:12px;color:var(--mu);list-style:none}
+details.tx summary::before{content:'+ '}
+details.tx[open] summary::before{content:'– '}
+details.tx p{margin:8px 0 0;font-size:13px;line-height:1.6;color:var(--tx2);white-space:pre-wrap}
+details.more{border-top:1px solid var(--line);padding-top:14px}
+details.more>summary{cursor:pointer;font-size:14px;font-weight:600;list-style:none;color:var(--tx2)}
+details.more>summary span{font-weight:400;color:var(--mu);font-size:12px;margin-left:6px}
+details.more>div{margin-top:14px}
+.lib{display:flex;flex-direction:column;gap:2px;overflow-x:auto}
+.lr{display:grid;grid-template-columns:var(--cols);gap:10px;align-items:center;padding:10px;font-size:13px;min-width:760px}
+.lr.hd{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu2);padding-bottom:6px}
+.lr:not(.hd){background:var(--s2);border-radius:8px}
+.lr .m{font-family:var(--mono);color:var(--tx2)}
+.lr .bh{color:var(--tx2);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4}
+.st{font-size:11px;font-weight:500;padding:3px 8px;border-radius:999px;justify-self:start}
+.st.Use{color:var(--ac);background:rgba(201,242,92,.14)}
+.st.Test{color:#F5B971;background:rgba(245,185,113,.12)}
+.st.Avoid{color:var(--dn);background:rgba(242,139,122,.14)}
+@media (max-width:760px){.wstats{grid-template-columns:repeat(2,minmax(0,1fr))}.wgrid{grid-template-columns:1fr}}
+
 @media (max-width:760px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:1180px){
   main{flex-direction:column;align-items:stretch}
@@ -190,10 +245,14 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
       <small>NOOCAP</small>
       <h1 id="title">Content OS</h1>
       <span class="tag" id="demoTag" hidden>SAMPLE DATA</span>
+      <nav class="seg sm views" id="views" aria-label="View" hidden>
+        <button type="button" data-act="view" data-v="perf">Performance</button>
+        <button type="button" data-act="view" data-v="winners">Winners</button>
+      </nav>
     </div>
     <nav class="seg" id="clients" aria-label="Clients"></nav>
     <div class="right">
-      <div class="dates" role="group" aria-label="Date range">
+      <div class="dates" id="dates" role="group" aria-label="Date range">
         <label>From <input type="date" id="dFrom" aria-label="Start date"></label>
         <span class="sep">–</span>
         <label>To <input type="date" id="dTo" aria-label="End date"></label>
@@ -202,6 +261,7 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
     </div>
   </header>
 
+  <div id="perf" style="display:contents">
   <section class="card aud" id="audience" aria-label="Audience"></section>
   <section class="kpis" id="kpis"></section>
   <section class="plats" id="plats" aria-label="Platforms"></section>
@@ -210,6 +270,12 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
     <div class="card board" id="board"></div>
     <aside class="card" id="detail" aria-label="Video details"></aside>
   </main>
+  </div>
+
+  <div id="wins" hidden style="display:flex;flex-direction:column;gap:20px">
+    <section class="card board" id="wboard" aria-label="Winning scripts"></section>
+    <section class="card board" id="wlib" aria-label="Format library"></section>
+  </div>
 </div>
 
 <script>
@@ -232,7 +298,14 @@ const S = {
   portal: !!KEY,
   demo: qs.get('demo') === '1',
   platform: 'all', format: 'all', from: null, to: null, sort: 'top', selId: null,
-  videos: [], audience: [], synced: null, loading: true, error: null
+  videos: [], audience: [], synced: null, loading: true, error: null,
+  view: !KEY && qs.get('view') === 'winners' ? 'winners' : 'perf'
+};
+
+// Winners tab state (team view only)
+const W = {
+  client: qs.get('wclient') || null, days: +qs.get('days') || 30, format: 'short', topic: 'all',
+  data: null, key: '', loading: false, error: null, running: false, runMsg: '', runWarn: false
 };
 
 const $ = id => document.getElementById(id);
@@ -493,7 +566,22 @@ function render() {
   $('demoTag').hidden = !S.demo;
 
   const names = S.clients.length ? S.clients : ROSTER;
+  const winView = S.view === 'winners' && !portal;
+  $('views').hidden = portal;
+  $('views').querySelectorAll('button').forEach(b => {
+    const on = b.dataset.v === (winView ? 'winners' : 'perf');
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+  });
+  $('perf').hidden = winView;
+  $('wins').hidden = !winView;
+  $('dates').hidden = winView;
   $('clients').hidden = portal;
+  if (winView) {
+    const wc = W.client || 'all';
+    $('clients').innerHTML = ['all'].concat(names).map(n =>
+      `<button type="button" data-act="wclient" data-v="${esc(n)}" class="${n === wc ? 'on' : ''}" aria-pressed="${n === wc}">${n === 'all' ? 'All creators' : esc(n)}</button>`).join('');
+    return renderWinners();
+  }
   $('clients').innerHTML = names.map(n =>
     `<button type="button" data-act="client" data-v="${esc(n)}" class="${n === S.client ? 'on' : ''}" aria-pressed="${n === S.client}">${esc(n)}</button>`).join('');
 
@@ -683,6 +771,171 @@ function render() {
     ${sel.topComments && sel.topComments.length ? `<div class="sec"><h4>Latest comments</h4>${sel.topComments.map(m => `<div class="cm"><b>${esc(m.u)}</b><span>${esc(m.t)}</span></div>`).join('')}</div>` : ''}`;
 }
 
+/* ---------- Winners tab ---------- */
+function apiUrl(path, params) {
+  const p = new URLSearchParams();
+  if (TEAM) p.set('team', TEAM);
+  for (const k in params) if (params[k] !== '' && params[k] != null) p.set(k, params[k]);
+  return path + '?' + p.toString();
+}
+
+async function loadWinners(fresh) {
+  if (S.demo) { W.error = 'The Winners tab needs live data. Open the dashboard without ?demo=1.'; renderWinners(); return; }
+  const key = [W.client || 'all', W.days, W.format].join('|');
+  if (W.data && W.key === key && !fresh) return renderWinners();
+  W.loading = true; W.error = null; progress(true); renderWinners();
+  try {
+    const r = await fetch(apiUrl('/api/winners', { client: W.client || 'all', days: W.days, format: W.format, fresh: fresh ? 1 : '' }));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('The winners service returned ' + r.status));
+    W.data = j; W.key = key;
+    if (W.topic !== 'all' && !j.topics.some(t => t.name === W.topic)) W.topic = 'all';
+  } catch (e) { W.error = e.message || String(e); }
+  W.loading = false; progress(false);
+  render();
+}
+
+function setView(v) {
+  S.view = v;
+  const u = new URL(location.href);
+  if (v === 'winners') u.searchParams.set('view', 'winners'); else u.searchParams.delete('view');
+  history.replaceState(null, '', u);
+  if (v === 'winners' && !W.client && S.client) W.client = S.client;
+  render();
+  if (v === 'winners') loadWinners();
+}
+
+async function runAnalyze() {
+  if (W.running) return;
+  W.running = true; W.runWarn = false; W.runMsg = 'Pulling transcripts and reading hooks…'; renderWinners();
+  let total = 0, noCaps = 0;
+  const seen = new Set();
+  try {
+    for (let i = 0; i < 80; i++) {
+      const r = await fetch(apiUrl('/api/analyze', { n: 6, client: W.client && W.client !== 'all' ? W.client : '' }));
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || ('The analyzer returned ' + r.status));
+      if (j.done.some(d => seen.has(d.id))) { W.runWarn = true; W.runMsg = `Stopped after ${total} videos: the same videos keep coming back, so Notion isn't saving the results. Check the integration can edit CONTENT STATS.`; break; }
+      j.done.forEach(d => seen.add(d.id));
+      total += j.done.length;
+      noCaps += j.done.filter(d => d.captions === 'none').length;
+      if (j.blocked) { W.runWarn = true; W.runMsg = `YouTube blocked the transcript fetch from Vercel after ${total} videos (${j.blocked}). Tell Claude and we'll switch to the backup.`; break; }
+      if (j.errors.length && !j.done.length) { W.runWarn = true; W.runMsg = 'Stopped: ' + j.errors[0].error; break; }
+      W.runMsg = `Analysed ${total} videos so far${noCaps ? ` (${noCaps} had no captions)` : ''}…`;
+      renderWinners();
+      if (!j.more) break;
+    }
+    if (!W.runWarn) {
+      W.runMsg = `Analysed ${total} videos. Updating the format library in Notion…`; renderWinners();
+      const r = await fetch(apiUrl('/api/analyze', { formats: 1 }));
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'The library update failed');
+      W.runMsg = `Done. Analysed ${total} videos${noCaps ? ` (${noCaps} had no captions, so only their topic was tagged)` : ''} and refreshed ${j.formats} formats in WINNING FORMATS.`;
+    }
+  } catch (e) { W.runWarn = true; W.runMsg = 'Stopped: ' + (e.message || e); }
+  W.running = false;
+  await loadWinners(true);
+}
+
+const xLabel = s => s == null ? '–' : (s >= 10 ? Math.round(s) : s.toFixed(1)) + '×';
+
+function winCard(s, all) {
+  const cls = s.verdict === 'win' ? 'win' : s.verdict === 'flop' ? 'flop' : 'ok';
+  const thumb = s.thumb
+    ? `<img class="wthumb ${s.format === 'long' ? 'l' : ''}" src="${esc(s.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;wthumb ph ${s.format === 'long' ? 'l' : ''}&quot;>NO THUMB</div>'">`
+    : `<div class="wthumb ph ${s.format === 'long' ? 'l' : ''}">NO THUMB</div>`;
+  const plats = s.platforms.map(p => {
+    const inner = `<span class="dot" style="background:${P[p.plat].color}"></span>${fmt(p.views)}${p.ratio != null ? ` <i>${xLabel(p.ratio)}</i>` : ''}`;
+    const tip = `${P[p.plat].name}: ${full(p.views)} views${p.median ? `, usual is ${full(p.median)}` : ''}${p.er != null ? `, ${p.er}% engagement` : ''}`;
+    return p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(tip)}">${inner}</a>` : `<span class="pp" title="${esc(tip)}">${inner}</span>`;
+  }).join('');
+  let body;
+  if (s.analyzed && s.hookLine) {
+    body = `<div class="hook">“${esc(s.hookLine)}”</div>
+      <div class="chips">${s.hookType ? `<span class="ht">${esc(s.hookType)}</span>` : ''}${s.topics.map(t => `<span>${esc(t)}</span>`).join('')}
+        ${s.wps ? `<span>${s.wps} words/sec</span>` : ''}${s.duration ? `<span>${dur(s.duration)}</span>` : ''}</div>
+      ${s.structure ? `<div class="kv"><span class="lbl">Structure</span><p>${esc(s.structure)}</p></div>` : ''}
+      ${s.why ? `<div class="kv"><span class="lbl">${s.verdict === 'flop' ? 'Hook mechanism' : 'Why it works'}</span><p>${esc(s.why)}</p></div>` : ''}
+      ${s.transcript ? `<details class="tx"><summary>Full transcript</summary><p>${esc(s.transcript)}</p></details>` : ''}`;
+  } else if (s.analyzed) {
+    body = `<div class="chips">${s.topics.map(t => `<span>${esc(t)}</span>`).join('')}</div><p class="note">${esc(s.why || 'Analysed, but no hook could be read.')}</p>`;
+  } else {
+    body = `<p class="note">${s.anchorId
+      ? 'Hook not analysed yet. Press "Analyse new videos" above to read it.'
+      : 'No YouTube Short matched this reel, so there\'s no transcript to read the hook from.'}</p>`;
+  }
+  return `<article class="wcard ${s.verdict === 'flop' ? 'flopcard' : ''}">
+    <div class="wtop">${thumb}
+      <div class="wmeta">
+        <div class="wline"><span class="score ${cls}" title="Average of each platform's views vs this creator's usual">${xLabel(s.score)} usual</span>
+          <span>${all ? esc(s.client) + ' · ' : ''}${dateLabel(s.posted)}</span>${s.early ? '<span class="tag" title="Under 7 days old, still growing">EARLY</span>' : ''}
+          ${s.er != null ? `<span>${s.er}% ER</span>` : ''}</div>
+        <h3>${esc(s.title)}</h3>
+        <div class="pl">${plats}</div>
+      </div></div>
+    ${body}</article>`;
+}
+
+function renderWinners() {
+  $('sync').className = 'sync' + (busy ? ' soft' : '');
+  $('sync').innerHTML = W.loading ? '<i></i>Loading winners…' : W.data ? '<i></i>Updated ' + ago(W.data.syncedAt) : '<i></i>Refresh';
+  const d = W.data;
+  const all = (W.client || 'all') === 'all';
+  const who = all ? 'All creators' : W.client;
+  if (!d || W.error) {
+    $('wboard').innerHTML = W.error
+      ? `<div class="state"><div>Couldn't load the winners. ${esc(W.error)}</div><div class="btns"><button type="button" class="btn pri" data-act="wretry">Try again</button></div></div>`
+      : `<div class="state">Scoring ${esc(who)}'s scripts…</div>`;
+    $('wlib').innerHTML = '';
+    return;
+  }
+  const list = d.scripts.filter(s => W.topic === 'all' || s.topics.includes(W.topic));
+  const wins = list.filter(s => s.verdict === 'win');
+  const flops = list.filter(s => s.verdict === 'flop').sort((a, b) => a.score - b.score);
+  const scored = list.filter(s => s.score != null);
+  const young = list.filter(s => s.verdict === 'new').length;
+  const a = d.analysis;
+  const fmtName = W.format === 'short' ? 'short-form' : 'long-form';
+
+  $('wboard').innerHTML = `
+    <div class="bhead"><div><h2>Winning scripts</h2>
+      <p>${esc(who)}, ${fmtName}, posted in the last ${W.days} days. A winner averages at least ${d.rules.win}× that creator's usual views on each platform it went out on, and posts are judged once they're ${d.rules.minAge} days old.</p></div>
+      <div class="ctrls">
+        <div class="seg sm" aria-label="Window">${[7, 14, 21, 30, 60].map(n =>
+          `<button type="button" data-act="wdays" data-v="${n}" class="${W.days === n ? 'on' : ''}" aria-pressed="${W.days === n}">${n}d</button>`).join('')}</div>
+        <div class="seg sm" aria-label="Format">${[['short', 'Short-form'], ['long', 'Long-form']].map(([k, l]) =>
+          `<button type="button" data-act="wformat" data-v="${k}" class="${W.format === k ? 'on' : ''}" aria-pressed="${W.format === k}">${l}</button>`).join('')}</div>
+      </div></div>
+    ${d.topics.length ? `<div class="topics" aria-label="Topic">
+      <button type="button" data-act="wtopic" data-v="all" class="${W.topic === 'all' ? 'on' : ''}">All topics</button>
+      ${d.topics.map(t => `<button type="button" data-act="wtopic" data-v="${esc(t.name)}" class="${W.topic === t.name ? 'on' : ''}">${esc(t.name)}<span>${t.n}</span></button>`).join('')}</div>` : ''}
+    <div class="wstats">
+      <div class="acard"><span class="lbl">Scripts scored</span><b>${scored.length}</b><span class="sub">${young ? young + ' too new to judge' : 'of ' + list.length + ' posted'}</span></div>
+      <div class="acard"><span class="lbl">Winners</span><b style="color:var(--ac)">${wins.length}</b><span class="sub">${d.rules.win}× usual or better</span></div>
+      <div class="acard"><span class="lbl">Underperformed</span><b style="color:var(--dn)">${flops.length}</b><span class="sub">${d.rules.flop}× usual or worse</span></div>
+      <div class="acard"><span class="lbl">Hooks analysed</span><b>${a.analyzed}<span style="font-size:14px;color:var(--mu)"> / ${a.youtube}</span></b>
+        <button type="button" class="btn ${a.analyzed < a.youtube ? 'pri' : ''}" data-act="wanalyze" ${W.running ? 'disabled' : ''}>${W.running ? 'Analysing…' : a.analyzed < a.youtube ? 'Analyse new videos' : 'Re-check for new'}</button></div>
+    </div>
+    ${W.runMsg ? `<div class="run ${W.runWarn ? 'warn' : ''}">${esc(W.runMsg)}</div>` : ''}
+    ${wins.length ? `<div class="wgrid">${wins.map(s => winCard(s, all)).join('')}</div>`
+      : `<div class="state" style="min-height:140px">${scored.length ? 'No script hit ' + d.rules.win + '× usual in this window. Try a longer window or another topic.' : 'Nothing here is old enough to score yet. Try a longer window.'}</div>`}
+    ${flops.length ? `<details class="more"><summary>Underperformed<span>${flops.length} scripts, useful for spotting hooks to avoid</span></summary>
+      <div class="wgrid">${flops.map(s => winCard(s, all)).join('')}</div></details>` : ''}`;
+
+  const lib = d.library;
+  const cols = (all ? '90px ' : '') + '130px 70px 90px 64px 52px 52px 64px minmax(200px,1fr)';
+  $('wlib').innerHTML = `
+    <div class="bhead"><div><h2>Format library</h2>
+      <p>How each hook type has done for ${all ? 'each creator' : esc(W.client)} over the last 90 days. <b style="color:var(--ac);font-weight:500">Use</b> means it keeps winning, <b style="color:#F5B971;font-weight:500">Test</b> needs more data, and <b style="color:var(--dn);font-weight:500">Avoid</b> keeps underperforming. This is what gets saved to WINNING FORMATS in Notion for the script routine to read.</p></div></div>
+    ${lib.length ? `<div class="lib" style="--cols:${cols}">
+      <div class="lr hd">${all ? '<span>Creator</span>' : ''}<span>Hook type</span><span>Status</span><span>Confidence</span><span>Videos</span><span>Wins</span><span>Flops</span><span>Avg</span><span>Best hook</span></div>
+      ${lib.map(f => `<div class="lr">${all ? `<span>${esc(f.client)}</span>` : ''}<span>${esc(f.hookType)}</span>
+        <span class="st ${f.status}">${f.status}</span><span class="m">${f.confidence}</span><span class="m">${f.videos}</span>
+        <span class="m">${f.wins}</span><span class="m">${f.flops}</span><span class="m">${xLabel(f.avgScore)}</span>
+        <span class="bh" title="${esc(f.bestTitle)}">${f.bestHook ? '“' + esc(f.bestHook) + '”' : esc(f.bestTitle)}</span></div>`).join('')}
+    </div>` : `<div class="state" style="min-height:120px">The library fills in once hooks are analysed. Press "Analyse new videos" above.</div>`}`;
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
@@ -697,7 +950,19 @@ document.addEventListener('click', e => {
       S.selId = v; render();
       if (window.innerWidth <= 1180) $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
       break;
-    case 'refresh': CACHE.clear(); load(true); break;
+    case 'view': setView(v); break;
+    case 'wclient':
+      W.client = v;
+      { const u = new URL(location.href); u.searchParams.set('wclient', v); history.replaceState(null, '', u); }
+      render(); loadWinners(); break;
+    case 'wdays': W.days = +v; render(); loadWinners(); break;
+    case 'wformat': W.format = v; render(); loadWinners(); break;
+    case 'wtopic': W.topic = v; renderWinners(); break;
+    case 'wanalyze': runAnalyze(); break;
+    case 'wretry': loadWinners(true); break;
+    case 'refresh':
+      if (S.view === 'winners' && !S.portal) { loadWinners(true); break; }
+      CACHE.clear(); load(true); break;
     case 'retry': S.loading = true; S.error = null; render(); load(true); break;
     case 'demo': S.demo = true; S.loading = true; render(); load(); break;
   }
@@ -720,6 +985,7 @@ $('dFrom').addEventListener('change', e => setDates(e.target.value, S.to));
 $('dTo').addEventListener('change', e => setDates(S.from, e.target.value));
 
 load();
+if (S.view === 'winners') { W.client = W.client || S.client || 'all'; loadWinners(); }
 setInterval(() => { if (!S.demo && !document.hidden) load(); }, 5 * 60 * 1000);
 </script>
 </body>
