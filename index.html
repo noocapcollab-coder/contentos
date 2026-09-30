@@ -162,6 +162,8 @@ aside h3{margin:0;font-size:21px;line-height:1.25;font-weight:600;letter-spacing
 
 /* ---------- Winners tab ---------- */
 .views{border-radius:10px}
+#wins .bhead>div{min-width:0;max-width:100%}
+#wins .ctrls .seg{max-width:100%}
 .wstats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .wstats .acard b{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1}
 .wstats .acard .btn{margin-top:4px;height:34px;align-self:flex-start}
@@ -305,6 +307,7 @@ const S = {
 // Winners tab state (team view only)
 const W = {
   client: qs.get('wclient') || null, days: +qs.get('days') || 30, format: 'short', topic: 'all',
+  plat: ['yt', 'tt', 'ig', 'fb'].includes(qs.get('wplat')) ? qs.get('wplat') : 'all',
   data: null, key: '', loading: false, error: null, running: false, runMsg: '', runWarn: false
 };
 
@@ -781,11 +784,11 @@ function apiUrl(path, params) {
 
 async function loadWinners(fresh) {
   if (S.demo) { W.error = 'The Winners tab needs live data. Open the dashboard without ?demo=1.'; renderWinners(); return; }
-  const key = [W.client || 'all', W.days, W.format].join('|');
+  const key = [W.client || 'all', W.days, W.format, W.plat].join('|');
   if (W.data && W.key === key && !fresh) return renderWinners();
   W.loading = true; W.error = null; progress(true); renderWinners();
   try {
-    const r = await fetch(apiUrl('/api/winners', { client: W.client || 'all', days: W.days, format: W.format, fresh: fresh ? 1 : '' }));
+    const r = await fetch(apiUrl('/api/winners', { client: W.client || 'all', days: W.days, format: W.format, plat: W.plat === 'all' ? '' : W.plat, fresh: fresh ? 1 : '' }));
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || ('The winners service returned ' + r.status));
     W.data = j; W.key = key;
@@ -844,10 +847,12 @@ function winCard(s, all) {
   const thumb = s.thumb
     ? `<img class="wthumb ${s.format === 'long' ? 'l' : ''}" src="${esc(s.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;wthumb ph ${s.format === 'long' ? 'l' : ''}&quot;>NO THUMB</div>'">`
     : `<div class="wthumb ph ${s.format === 'long' ? 'l' : ''}">NO THUMB</div>`;
-  const plats = s.platforms.map(p => {
+  const onPlat = W.plat !== 'all' ? W.plat : null;
+  const plats = s.platforms.slice().sort((a, b) => (b.plat === onPlat) - (a.plat === onPlat)).map(p => {
+    const dim = onPlat && p.plat !== onPlat ? ' style="opacity:.45"' : '';
     const inner = `<span class="dot" style="background:${P[p.plat].color}"></span>${fmt(p.views)}${p.ratio != null ? ` <i>${xLabel(p.ratio)}</i>` : ''}`;
     const tip = `${P[p.plat].name}: ${full(p.views)} views${p.median ? `, usual is ${full(p.median)}` : ''}${p.er != null ? `, ${p.er}% engagement` : ''}`;
-    return p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(tip)}">${inner}</a>` : `<span class="pp" title="${esc(tip)}">${inner}</span>`;
+    return p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(tip)}"${dim}>${inner}</a>` : `<span class="pp" title="${esc(tip)}"${dim}>${inner}</span>`;
   }).join('');
   let body;
   if (s.analyzed && s.hookLine) {
@@ -867,7 +872,7 @@ function winCard(s, all) {
   return `<article class="wcard ${s.verdict === 'flop' ? 'flopcard' : ''}">
     <div class="wtop">${thumb}
       <div class="wmeta">
-        <div class="wline"><span class="score ${cls}" title="Average of each platform's views vs this creator's usual">${xLabel(s.score)} usual</span>
+        <div class="wline"><span class="score ${cls}" title="${onPlat ? P[onPlat].name + ' views vs this creator\'s usual there' : 'Average of each platform\'s views vs this creator\'s usual'}">${xLabel(s.score)} usual${onPlat ? ' on ' + P[onPlat].name : ''}</span>
           ${s.breakout ? `<span class="score win" title="At least 3× usual on this platform">${P[s.breakout].name} breakout ${xLabel(s.best.ratio)}</span>` : ''}
           <span>${all ? esc(s.client) + ' · ' : ''}${dateLabel(s.posted)}</span>${s.early ? '<span class="tag" title="Under 7 days old, still growing">EARLY</span>' : ''}
           ${s.er != null ? `<span>${s.er}% ER</span>` : ''}</div>
@@ -897,11 +902,17 @@ function renderWinners() {
   const young = list.filter(s => s.verdict === 'new').length;
   const a = d.analysis;
   const fmtName = W.format === 'short' ? 'short-form' : 'long-form';
+  const pName = W.plat !== 'all' ? P[W.plat].name : null;
+  const rule = pName
+    ? `Judged on ${pName} only: a winner gets at least ${d.rules.win}× that creator's usual ${pName} views.`
+    : `A winner averages at least ${d.rules.win}× that creator's usual views across its platforms, or breaks out at ${d.rules.breakout || 3}× or more on one of them.`;
 
   $('wboard').innerHTML = `
-    <div class="bhead"><div><h2>Winning scripts</h2>
-      <p>${esc(who)}, ${fmtName}, posted in the last ${W.days} days. A winner averages at least ${d.rules.win}× that creator's usual views across its platforms, or breaks out at ${d.rules.breakout || 3}× or more on one of them. Posts are judged once they're ${d.rules.minAge} days old.</p></div>
+    <div class="bhead"><div><h2>Winning scripts${pName ? ' on ' + pName : ''}</h2>
+      <p>${esc(who)}, ${fmtName}, posted in the last ${W.days} days. ${rule} Posts are judged once they're ${d.rules.minAge} days old.</p></div>
       <div class="ctrls">
+        <div class="seg sm" aria-label="Platform">${[['all', 'All platforms']].concat(Object.keys(P).map(k => [k, P[k].name])).map(([k, l]) =>
+          `<button type="button" data-act="wplat" data-v="${k}" class="${W.plat === k ? 'on' : ''}" aria-pressed="${W.plat === k}">${k === 'all' ? '' : `<span class="dot" style="background:${P[k].color};margin-right:6px"></span>`}${l}</button>`).join('')}</div>
         <div class="seg sm" aria-label="Window">${[7, 14, 21, 30, 60].map(n =>
           `<button type="button" data-act="wdays" data-v="${n}" class="${W.days === n ? 'on' : ''}" aria-pressed="${W.days === n}">${n}d</button>`).join('')}</div>
         <div class="seg sm" aria-label="Format">${[['short', 'Short-form'], ['long', 'Long-form']].map(([k, l]) =>
@@ -912,7 +923,7 @@ function renderWinners() {
       ${d.topics.map(t => `<button type="button" data-act="wtopic" data-v="${esc(t.name)}" class="${W.topic === t.name ? 'on' : ''}">${esc(t.name)}<span>${t.n}</span></button>`).join('')}</div>` : ''}
     <div class="wstats">
       <div class="acard"><span class="lbl">Scripts scored</span><b>${scored.length}</b><span class="sub">${young ? young + ' too new to judge' : 'of ' + list.length + ' posted'}</span></div>
-      <div class="acard"><span class="lbl">Winners</span><b style="color:var(--ac)">${wins.length}</b><span class="sub">${d.rules.win}× average or a ${d.rules.breakout || 3}× breakout</span></div>
+      <div class="acard"><span class="lbl">Winners</span><b style="color:var(--ac)">${wins.length}</b><span class="sub">${pName ? d.rules.win + '× usual on ' + pName : d.rules.win + '× average or a ' + (d.rules.breakout || 3) + '× breakout'}</span></div>
       <div class="acard"><span class="lbl">Underperformed</span><b style="color:var(--dn)">${flops.length}</b><span class="sub">${d.rules.flop}× usual or worse</span></div>
       <div class="acard"><span class="lbl">Hooks analysed</span><b>${a.analyzed}<span style="font-size:14px;color:var(--mu)"> / ${a.youtube}</span></b>
         <button type="button" class="btn ${a.analyzed < a.youtube ? 'pri' : ''}" data-act="wanalyze" ${W.running ? 'disabled' : ''}>${W.running ? 'Analysing…' : a.analyzed < a.youtube ? 'Analyse new videos' : 'Re-check for new'}</button></div>
@@ -927,7 +938,9 @@ function renderWinners() {
   const cols = (all ? '90px ' : '') + '130px 70px 90px 64px 52px 52px 64px minmax(200px,1fr)';
   $('wlib').innerHTML = `
     <div class="bhead"><div><h2>Format library</h2>
-      <p>How each hook type has done for ${all ? 'each creator' : esc(W.client)} over the last 90 days. <b style="color:var(--ac);font-weight:500">Use</b> means it keeps winning, <b style="color:#F5B971;font-weight:500">Test</b> needs more data, and <b style="color:var(--dn);font-weight:500">Avoid</b> keeps underperforming. This is what gets saved to WINNING FORMATS in Notion for the script routine to read.</p></div></div>
+      <p>How each hook type has done for ${all ? 'each creator' : esc(W.client)}${pName ? ' on ' + pName : ''} over the last 90 days. <b style="color:var(--ac);font-weight:500">Use</b> means it keeps winning, <b style="color:#F5B971;font-weight:500">Test</b> needs more data, and <b style="color:var(--dn);font-weight:500">Avoid</b> keeps underperforming. ${pName
+        ? 'WINNING FORMATS in Notion keeps the all-platforms view, so this ' + pName + ' view is for reading here only.'
+        : 'This is what gets saved to WINNING FORMATS in Notion for the script routine to read.'}</p></div></div>
     ${lib.length ? `<div class="lib" style="--cols:${cols}">
       <div class="lr hd">${all ? '<span>Creator</span>' : ''}<span>Hook type</span><span>Status</span><span>Confidence</span><span>Videos</span><span>Wins</span><span>Flops</span><span>Avg</span><span>Best hook</span></div>
       ${lib.map(f => `<div class="lr">${all ? `<span>${esc(f.client)}</span>` : ''}<span>${esc(f.hookType)}</span>
@@ -958,6 +971,10 @@ document.addEventListener('click', e => {
       render(); loadWinners(); break;
     case 'wdays': W.days = +v; render(); loadWinners(); break;
     case 'wformat': W.format = v; render(); loadWinners(); break;
+    case 'wplat':
+      W.plat = v;
+      { const u = new URL(location.href); if (v === 'all') u.searchParams.delete('wplat'); else u.searchParams.set('wplat', v); history.replaceState(null, '', u); }
+      render(); loadWinners(); break;
     case 'wtopic': W.topic = v; renderWinners(); break;
     case 'wanalyze': runAnalyze(); break;
     case 'wretry': loadWinners(true); break;
