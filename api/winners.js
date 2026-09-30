@@ -5,7 +5,7 @@
 // Team view only: clients never see this.
 
 import { STATS_DS, queryAll, teamOk, todayIST, daysAgoIST } from '../lib/notion.js';
-import { normalizeRow, buildScripts, formatLibrary, WIN, FLOP, MIN_AGE } from '../lib/score.js';
+import { normalizeRow, buildScripts, formatLibrary, WIN, FLOP, MIN_AGE, BREAKOUT } from '../lib/score.js';
 import { CLIENTS, clientByName } from '../lib/clients.js';
 
 const LOOKBACK_DAYS = 120;
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       client: all ? 'all' : c.name,
       clients: CLIENTS.map(x => x.name),
       days, format,
-      rules: { win: WIN, flop: FLOP, minAge: MIN_AGE },
+      rules: { win: WIN, flop: FLOP, minAge: MIN_AGE, breakout: BREAKOUT },
       scripts: inWindow.sort((a, b) => (b.score ?? -1) - (a.score ?? -1)),
       library,
       topics: Object.entries(topics).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })),
