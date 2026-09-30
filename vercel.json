@@ -1,5 +1,9 @@
 {
   "functions": {
     "api/*.js": { "maxDuration": 60 }
-  }
+  },
+  "crons": [
+    { "path": "/api/analyze", "schedule": "30 20 * * *" },
+    { "path": "/api/analyze?formats=1", "schedule": "30 21 * * *" }
+  ]
 }
