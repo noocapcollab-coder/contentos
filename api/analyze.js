@@ -2,7 +2,10 @@
 //
 //   Batch:    /api/analyze?team=<TEAM_KEY>&n=6        (the Winners tab loops this)
 //   Library:  /api/analyze?team=<TEAM_KEY>&formats=1  (rebuilds WINNING FORMATS)
-//   Cron:     runs daily from vercel.json (batch at 2am IST, library at 3am IST)
+//   Cron:     every day from vercel.json (batch at 2am IST, library at 3am IST;
+//             Vercel crons use UTC, so the file says 20:30 and 21:30 UTC).
+//             Anything a run can't finish in time is picked up by the next run
+//             or by the Winners tab button.
 //
 // For each YouTube row with no "Analyzed" date: pull the transcript for free,
 // ask Claude Haiku for topic, hook line, hook type, structure and why it works,
@@ -72,7 +75,7 @@ async function analyzeOne(v) {
     try {
       transcript = (await fetchTranscript(youtubeId(v.key || v.url))).text;
     } catch (e) {
-      if (e.kind === 'blocked') throw e;
+      if (e.kind !== 'none') throw e; // blocked, bad key, out of credit: stop, don't mark as analysed
       captions = 'none';
       transcript = '';
     }
@@ -96,8 +99,11 @@ async function analyzeOne(v) {
   return { id: v.id, title: v.title, client: v.client, hookType: props['Hook Type'].select ? hookType : null, captions };
 }
 
-async function runBatch(q, started) {
-  const n = Math.min(Math.max(parseInt(q.n, 10) || 6, 1), 12);
+async function runBatch(q, started, cron) {
+  // The button asks for small batches so the page can show progress; a cron run
+  // takes as many as fit in the time budget (two or three days of new videos).
+  const n = cron ? 40 : Math.min(Math.max(parseInt(q.n, 10) || 6, 1), 12);
+  const lanes = cron ? 5 : 3;
   const filter = { and: [
     { property: 'Platform', select: { equals: 'YouTube' } },
     { property: 'Analyzed', date: { is_empty: true } },
@@ -109,15 +115,15 @@ async function runBatch(q, started) {
   const batch = todo.slice(0, n);
   const done = [], errors = [];
   let blocked = null;
-  for (let i = 0; i < batch.length; i += 3) {
+  for (let i = 0; i < batch.length; i += lanes) {
     if (Date.now() - started > TIME_BUDGET_MS || blocked) break;
-    const results = await Promise.allSettled(batch.slice(i, i + 3).map(analyzeOne));
+    const results = await Promise.allSettled(batch.slice(i, i + lanes).map(analyzeOne));
     results.forEach((r, k) => {
       if (r.status === 'fulfilled') done.push(r.value);
       else if (r.reason && r.reason.kind === 'blocked') blocked = String(r.reason.message);
       else errors.push({ title: batch[i + k].title, error: String((r.reason && r.reason.message) || r.reason) });
     });
-    if (errors.some(e => /Anthropic/.test(e.error))) break; // bad key or out of credit: stop early
+    if (errors.some(e => /Anthropic|Supadata/.test(e.error))) break; // bad key or out of credit: stop early
   }
   return { done, errors, blocked, more: todo.length > done.length && !blocked };
 }
@@ -167,7 +173,7 @@ export default async function handler(req, res) {
   try {
     if (q.formats) return res.status(200).json({ ok: true, ...(await rebuildLibrary()) });
     if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not set in Vercel' });
-    const out = await runBatch(cron ? { n: 9 } : q, started);
+    const out = await runBatch(q, started, cron);
     return res.status(200).json({ ok: true, ms: Date.now() - started, ...out });
   } catch (e) {
     return res.status(500).json({ error: String((e && e.message) || e) });
