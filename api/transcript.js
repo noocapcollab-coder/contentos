@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   const t0 = Date.now();
   try {
     const t = await fetchTranscript(id);
-    return res.status(200).json({ ok: true, video: id, ms: Date.now() - t0, words: t.text.split(/\s+/).length, lang: t.lang, auto: t.auto, text: t.text });
+    return res.status(200).json({ ok: true, source: t.source || 'free', video: id, ms: Date.now() - t0, words: t.text.split(/\s+/).length, lang: t.lang, auto: t.auto, text: t.text });
   } catch (e) {
     return res.status(200).json({ ok: false, video: id, ms: Date.now() - t0, kind: e.kind || 'error', error: String(e.message || e) });
   }
