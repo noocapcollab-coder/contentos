@@ -215,7 +215,22 @@ details.more>div{margin-top:14px}
 .st.Use{color:var(--ac);background:rgba(201,242,92,.14)}
 .st.Test{color:#F5B971;background:rgba(245,185,113,.12)}
 .st.Avoid{color:var(--dn);background:rgba(242,139,122,.14)}
-@media (max-width:760px){.wstats{grid-template-columns:repeat(2,minmax(0,1fr))}.wgrid{grid-template-columns:1fr}}
+.rk{display:flex;flex-direction:column;gap:2px}
+.rr{display:grid;grid-template-columns:34px 44px minmax(0,1fr) minmax(0,260px) 76px 92px;gap:12px;align-items:center;padding:8px 10px;border-radius:8px;font-size:13px;width:100%;border:0;background:transparent;text-align:left}
+.rr.hd{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu2);padding-bottom:6px}
+button.rr:hover{background:#1A1D22}
+button.rr.on{background:#22262C}
+.rr .n{font-family:var(--mono);color:var(--mu2);font-size:12px}
+.rr .th2{width:44px;height:58px;border-radius:5px;object-fit:cover;background:var(--s2)}
+.rr .tt2{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rr .tt2 b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rr .tt2 span{font-size:11px;color:var(--mu);font-family:var(--mono)}
+.rr .m{font-family:var(--mono);color:var(--tx2)}
+.rr .pl{flex-wrap:nowrap;overflow:hidden}
+.rdetail{padding:6px 10px 14px 100px}
+.rdetail .wcard{max-width:760px}
+@media (max-width:760px){.wstats{grid-template-columns:repeat(2,minmax(0,1fr))}.wgrid{grid-template-columns:1fr}
+  .rr{grid-template-columns:26px 36px minmax(0,1fr) 70px}.rr .pl,.rr .vw{display:none}.rr .th2{width:36px;height:48px}.rdetail{padding-left:0}}
 
 @media (max-width:760px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:1180px){
@@ -276,6 +291,7 @@ details.more>div{margin-top:14px}
 
   <div id="wins" hidden style="display:flex;flex-direction:column;gap:20px">
     <section class="card board" id="wboard" aria-label="Winning scripts"></section>
+    <section class="card board" id="wall" aria-label="All videos ranked"></section>
     <section class="card board" id="wlib" aria-label="Format library"></section>
   </div>
 </div>
@@ -308,6 +324,7 @@ const S = {
 const W = {
   client: qs.get('wclient') || null, days: +qs.get('days') || 30, format: 'short', topic: 'all',
   plat: ['yt', 'tt', 'ig', 'fb'].includes(qs.get('wplat')) ? qs.get('wplat') : 'all',
+  sort: 'score', open: null,
   data: null, key: '', loading: false, error: null, running: false, runMsg: '', runWarn: false
 };
 
@@ -893,6 +910,7 @@ function renderWinners() {
       ? `<div class="state"><div>Couldn't load the winners. ${esc(W.error)}</div><div class="btns"><button type="button" class="btn pri" data-act="wretry">Try again</button></div></div>`
       : `<div class="state">Scoring ${esc(who)}'s scripts…</div>`;
     $('wlib').innerHTML = '';
+    $('wall').innerHTML = '';
     return;
   }
   const list = d.scripts.filter(s => W.topic === 'all' || s.topics.includes(W.topic));
@@ -933,6 +951,36 @@ function renderWinners() {
       : `<div class="state" style="min-height:140px">${scored.length ? 'No script hit ' + d.rules.win + '× usual in this window. Try a longer window or another topic.' : 'Nothing here is old enough to score yet. Try a longer window.'}</div>`}
     ${flops.length ? `<details class="more"><summary>Underperformed<span>${flops.length} scripts, useful for spotting hooks to avoid</span></summary>
       <div class="wgrid">${flops.map(s => winCard(s, all)).join('')}</div></details>` : ''}`;
+
+  // Every video in the current filters, highest to lowest. Click a row for the full card.
+  const ranked = list.slice().sort(W.sort === 'views'
+    ? (x, y) => y.views - x.views
+    : (x, y) => (y.score ?? -1) - (x.score ?? -1) || y.views - x.views);
+  const vchip = s => {
+    const c = s.verdict === 'win' ? 'win' : s.verdict === 'flop' ? 'flop' : 'ok';
+    return s.score == null ? `<span class="score ok">${s.verdict === 'new' ? 'too new' : '–'}</span>` : `<span class="score ${c}">${xLabel(s.score)}</span>`;
+  };
+  $('wall').innerHTML = `
+    <div class="bhead"><div><h2>All videos, ranked${pName ? ' on ' + pName : ''}</h2>
+      <p>Every ${fmtName} video ${all ? 'from all creators ' : 'from ' + esc(W.client) + ' '}posted in the last ${W.days} days${W.topic !== 'all' ? ' about ' + esc(W.topic) : ''}, from highest to lowest. Click any row to open its full breakdown.</p></div>
+      <div class="ctrls"><div class="seg sm" aria-label="Sort">
+        <button type="button" data-act="wsort" data-v="score" class="${W.sort === 'score' ? 'on' : ''}">vs usual</button>
+        <button type="button" data-act="wsort" data-v="views" class="${W.sort === 'views' ? 'on' : ''}">Total views</button></div></div></div>
+    ${ranked.length ? `<div class="rk">
+      <div class="rr hd"><span>#</span><span></span><span>Video</span><span class="pl">Platforms</span><span class="vw">Views</span><span>vs usual</span></div>
+      ${ranked.map((s, i) => {
+        const open = W.open === s.id;
+        const pl = s.platforms.map(p => `<span class="pp"${W.plat !== 'all' && p.plat !== W.plat ? ' style="opacity:.45"' : ''}><span class="dot" style="background:${P[p.plat].color}"></span>${fmt(p.views)}</span>`).join('');
+        return `<button type="button" class="rr ${open ? 'on' : ''}" data-act="wopen" data-v="${esc(s.id)}" aria-expanded="${open}">
+          <span class="n">${i + 1}</span>
+          ${s.thumb ? `<img class="th2" src="${esc(s.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<span class="th2"></span>'}
+          <span class="tt2"><b>${esc(s.title)}</b><span>${all ? esc(s.client) + ' · ' : ''}${dateLabel(s.posted)}${s.hookType ? ' · ' + esc(s.hookType) : ''}${s.early ? ' · early' : ''}</span></span>
+          <span class="pl">${pl}</span>
+          <span class="m vw">${fmt(s.views)}</span>
+          ${vchip(s)}</button>
+          ${open ? `<div class="rdetail">${winCard(s, all)}</div>` : ''}`;
+      }).join('')}</div>`
+      : '<div class="state" style="min-height:120px">No videos in this window. Try a longer one.</div>'}`;
 
   const lib = d.library;
   const cols = (all ? '90px ' : '') + '130px 70px 90px 64px 52px 52px 64px minmax(200px,1fr)';
@@ -976,6 +1024,8 @@ document.addEventListener('click', e => {
       { const u = new URL(location.href); if (v === 'all') u.searchParams.delete('wplat'); else u.searchParams.set('wplat', v); history.replaceState(null, '', u); }
       render(); loadWinners(); break;
     case 'wtopic': W.topic = v; renderWinners(); break;
+    case 'wsort': W.sort = v; renderWinners(); break;
+    case 'wopen': W.open = W.open === v ? null : v; renderWinners(); break;
     case 'wanalyze': runAnalyze(); break;
     case 'wretry': loadWinners(true); break;
     case 'refresh':
