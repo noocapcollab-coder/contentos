@@ -2,6 +2,7 @@
 //
 //   Batch:    /api/analyze?team=<TEAM_KEY>&n=6        (the Winners tab loops this)
 //   Library:  /api/analyze?team=<TEAM_KEY>&formats=1  (rebuilds WINNING FORMATS)
+//   One:      /api/analyze?team=<TEAM_KEY>&id=<page id>  (the button on each video card)
 //   Cron:     every day from vercel.json (batch at 2am IST, library at 3am IST;
 //             Vercel crons use UTC, so the file says 20:30 and 21:30 UTC).
 //             Anything a run can't finish in time is picked up by the next run
@@ -19,7 +20,8 @@
 import { STATS_DS, FORMATS_DS, queryAll, patchPage, createPage, rt, teamOk, todayIST, daysAgoIST, prop, text } from '../lib/notion.js';
 import { normalizeRow, buildScripts, formatLibrary } from '../lib/score.js';
 import { TOPICS, HOOK_TYPES } from '../lib/topics.js';
-import { fetchTranscript, youtubeId } from '../lib/youtube.js';
+import { fetchTranscript, transcriptFromUrl, youtubeId } from '../lib/youtube.js';
+import { notion } from '../lib/notion.js';
 
 const LOOKBACK_DAYS = 120;
 const TIME_BUDGET_MS = 42000; // stop starting new videos after this (functions cap at 60s)
@@ -113,7 +115,9 @@ async function analyzeOne(v) {
   let captions = 'ok';
   if (!transcript) {
     try {
-      transcript = (await fetchTranscript(youtubeId(v.key || v.url))).text;
+      transcript = v.plat === 'yt'
+        ? (await fetchTranscript(youtubeId(v.key || v.url))).text
+        : (await transcriptFromUrl(v.url)).text; // Instagram/TikTok/Facebook reel with no matching Short
     } catch (e) {
       if (e.kind !== 'none') throw e; // blocked, bad key, out of credit: stop, don't mark as analysed
       captions = 'none';
@@ -129,7 +133,7 @@ async function analyzeOne(v) {
     'Topic Suggestion': rt(a.topic_suggestion || ''),
     'Hook Line': rt(captions === 'none' ? '' : a.hook_line || ''),
     'Structure': rt(captions === 'none' ? '' : a.structure || ''),
-    'Why It Worked': rt(captions === 'none' ? 'No captions on YouTube, so only the topic was tagged.' : a.why || ''),
+    'Why It Worked': rt(captions === 'none' ? 'No spoken words could be read from this video, so only the topic was tagged.' : a.why || ''),
     'Hook Type': { select: captions === 'none' || !hookType ? null : { name: hookType } },
     'Words per sec': { number: words && v.duration ? +(words / v.duration).toFixed(2) : null },
     Analyzed: { date: { start: todayIST() } }
@@ -214,6 +218,26 @@ export default async function handler(req, res) {
   try {
     if (q.formats) return res.status(200).json({ ok: true, ...(await rebuildLibrary()) });
     OIDC = req.headers['x-vercel-oidc-token'] || null;
+    // One video: /api/analyze?team=...&id=<CONTENT STATS page id>. Works on any
+    // platform and re-analyses even if it was done before.
+    if (q.id) {
+      const page = await notion(`/pages/${encodeURIComponent(String(q.id))}`, 'GET');
+      const v = normalizeRow(page);
+      // Already analysed: hand back what's saved in Notion, no Supadata or AI call.
+      // (To force a fresh read, clear the row's Analyzed date in CONTENT STATS.)
+      if (v.analyzed) {
+        return res.status(200).json({ ok: true, cached: true, ms: Date.now() - started, errors: [],
+          done: [{ id: v.id, title: v.title, client: v.client, hookType: v.hookType || null, hookLine: v.hookLine, analyzed: v.analyzed }] });
+      }
+      if (!v.url && v.plat !== 'yt') return res.status(400).json({ error: 'This video has no link saved, so it can\'t be read' });
+      try {
+        // A transcript saved earlier is reused, so Supadata is never paid twice for the same video.
+        const done = await analyzeOne(v);
+        return res.status(200).json({ ok: true, ms: Date.now() - started, done: [done], errors: [] });
+      } catch (e) {
+        return res.status(200).json({ ok: false, ms: Date.now() - started, done: [], errors: [{ title: v.title, error: String(e.message || e) }] });
+      }
+    }
     const out = await runBatch(q, started, cron);
     return res.status(200).json({ ok: true, ms: Date.now() - started, ...out });
   } catch (e) {
