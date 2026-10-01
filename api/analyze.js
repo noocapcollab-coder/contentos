@@ -11,8 +11,10 @@
 // ask Claude Haiku for topic, hook line, hook type, structure and why it works,
 // and write it all back to that row in CONTENT STATS.
 //
-// Env vars: NOTION_TOKEN, STATS_DS, ANTHROPIC_API_KEY. Optional: TEAM_KEY,
-// CRON_SECRET, FORMATS_DS (defaults to the WINNING FORMATS database), ANALYZE_MODEL.
+// Env vars: NOTION_TOKEN, STATS_DS, SUPADATA_API_KEY. The AI runs through Vercel
+// AI Gateway using the project's OIDC token (or AI_GATEWAY_API_KEY if set), with
+// ANTHROPIC_API_KEY as a fallback. Optional: TEAM_KEY, CRON_SECRET, FORMATS_DS,
+// GATEWAY_MODEL, ANALYZE_MODEL, ANTHROPIC_WORKSPACE_ID, USE_ANTHROPIC_DIRECT=1.
 
 import { STATS_DS, FORMATS_DS, queryAll, patchPage, createPage, rt, teamOk, todayIST, daysAgoIST, prop, text } from '../lib/notion.js';
 import { normalizeRow, buildScripts, formatLibrary } from '../lib/score.js';
@@ -49,7 +51,44 @@ Return JSON with these keys:
 ${transcript ? '' : 'Without a transcript leave hook_line, structure and why as empty strings.'}`;
 }
 
+// Vercel AI Gateway first: inside Vercel it can sign in with the project's own OIDC
+// token (no key to manage), or with AI_GATEWAY_API_KEY if one is set. Falls back
+// to ANTHROPIC_API_KEY when the Gateway isn't available.
+let OIDC = null; // set per request from the x-vercel-oidc-token header
+
+async function viaGateway(content) {
+  const token = process.env.AI_GATEWAY_API_KEY || OIDC || process.env.VERCEL_OIDC_TOKEN;
+  if (!token) throw new Error('Gateway: no AI Gateway key or Vercel OIDC token available');
+  const r = await fetch('https://ai-gateway.vercel.sh/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: process.env.GATEWAY_MODEL || 'anthropic/claude-haiku-4.5',
+      max_tokens: 700,
+      messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content }]
+    })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('Gateway: ' + ((j.error && (j.error.message || j.error)) || r.status));
+  return ((j.choices || [])[0] || {}).message?.content || '';
+}
+
 async function askClaude(content) {
+  let out = '', gatewayErr = null;
+  if (process.env.USE_ANTHROPIC_DIRECT !== '1') {
+    try { out = await viaGateway(content); } catch (e) { gatewayErr = e; }
+  }
+  if (!out) {
+    if (!process.env.ANTHROPIC_API_KEY) throw gatewayErr || new Error('Gateway: no response');
+    try { out = await viaAnthropic(content); }
+    catch (e) { throw new Error((gatewayErr ? gatewayErr.message + ' | ' : '') + e.message); }
+  }
+  const m = out.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Claude did not return JSON');
+  return JSON.parse(m[0]);
+}
+
+async function viaAnthropic(content) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -66,10 +105,7 @@ async function askClaude(content) {
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error('Anthropic: ' + ((j.error && j.error.message) || r.status));
-  const out = (j.content || []).map(c => c.text || '').join('');
-  const m = out.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error('Claude did not return JSON');
-  return JSON.parse(m[0]);
+  return (j.content || []).map(c => c.text || '').join('');
 }
 
 async function analyzeOne(v) {
@@ -128,7 +164,7 @@ async function runBatch(q, started, cron) {
       else if (r.reason && r.reason.kind === 'blocked') blocked = String(r.reason.message);
       else errors.push({ title: batch[i + k].title, error: String((r.reason && r.reason.message) || r.reason) });
     });
-    if (errors.some(e => /Anthropic|Supadata/.test(e.error))) break; // bad key or out of credit: stop early
+    if (errors.some(e => /Anthropic|Supadata|Gateway/.test(e.error))) break; // bad key or out of credit: stop early
   }
   return { done, errors, blocked, more: todo.length > done.length && !blocked };
 }
@@ -177,7 +213,7 @@ export default async function handler(req, res) {
   const started = Date.now();
   try {
     if (q.formats) return res.status(200).json({ ok: true, ...(await rebuildLibrary()) });
-    if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not set in Vercel' });
+    OIDC = req.headers['x-vercel-oidc-token'] || null;
     const out = await runBatch(q, started, cron);
     return res.status(200).json({ ok: true, ms: Date.now() - started, ...out });
   } catch (e) {
