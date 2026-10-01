@@ -324,7 +324,7 @@ const S = {
 const W = {
   client: qs.get('wclient') || null, days: +qs.get('days') || 30, format: 'short', topic: 'all',
   plat: ['yt', 'tt', 'ig', 'fb'].includes(qs.get('wplat')) ? qs.get('wplat') : 'all',
-  sort: 'score', open: null,
+  sort: 'score', open: null, busy: {},
   data: null, key: '', loading: false, error: null, running: false, runMsg: '', runWarn: false
 };
 
@@ -857,6 +857,23 @@ async function runAnalyze() {
   await loadWinners(true);
 }
 
+async function analyzeOneVideo(id) {
+  if (!id || (W.busy[id] && W.busy[id].run)) return;
+  const was = (W.data && W.data.scripts.find(s => s.analyzeId === id)) || {};
+  W.busy[id] = { run: true, msg: was.analyzePlat && was.analyzePlat !== 'yt' ? 'Transcribing the reel, this can take up to a minute…' : 'Reading the transcript…' };
+  renderWinners();
+  try {
+    const r = await fetch(apiUrl('/api/analyze', { id }));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('The analyzer returned ' + r.status));
+    if (j.errors && j.errors.length) throw new Error(j.errors[0].error);
+    W.busy[id] = { run: false, msg: j.cached ? 'Already analysed, showing the saved breakdown.' : 'Done.' };
+  } catch (e) {
+    W.busy[id] = { run: false, warn: true, msg: 'Stopped: ' + (e.message || e) };
+  }
+  await loadWinners(true);
+}
+
 const xLabel = s => s == null ? '–' : (s >= 10 ? Math.round(s) : s.toFixed(1)) + '×';
 
 function winCard(s, all) {
@@ -882,10 +899,20 @@ function winCard(s, all) {
   } else if (s.analyzed) {
     body = `<div class="chips">${s.topics.map(t => `<span>${esc(t)}</span>`).join('')}</div><p class="note">${esc(s.why || 'Analysed, but no hook could be read.')}</p>`;
   } else {
-    body = `<p class="note">${s.anchorId
-      ? 'Hook not analysed yet. Press "Analyse new videos" above to read it.'
-      : 'No YouTube Short matched this reel, so there\'s no transcript to read the hook from.'}</p>`;
+    body = s.analyzeId
+      ? `<p class="note">${s.analyzePlat === 'yt' ? 'Hook not analysed yet.' : `No YouTube Short matched this reel, so it'll be read straight from ${P[s.analyzePlat].name}.`}</p>`
+      : '<p class="note">No video link is saved for this reel, so it can\'t be analysed.</p>';
   }
+  // One-video analysis, so you only spend credits on the videos you care about.
+  const busy = W.busy[s.analyzeId];
+  // Analysed videos just show their saved breakdown: no button, so no tokens spent twice.
+  const btn = s.analyzed
+    ? `<span class="note" title="Read from Notion. To redo it, clear the Analyzed date on this video in CONTENT STATS.">Saved analysis · ${dateLabel(s.analyzedOn)}${s.analyzedPlat && s.analyzedPlat !== 'yt' ? ' · from ' + P[s.analyzedPlat].name : ''}</span>`
+    : !s.analyzeId ? '' : busy && busy.run
+    ? `<button type="button" class="btn" disabled style="height:34px">Analysing…</button>`
+    : `<button type="button" class="btn pri" data-act="wone" data-v="${esc(s.analyzeId)}" style="height:34px">Analyse this video</button>`;
+  body += `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${btn}${busy && busy.msg
+    ? `<span class="run ${busy.warn ? 'warn' : ''}">${esc(busy.msg)}</span>` : ''}</div>`;
   return `<article class="wcard ${s.verdict === 'flop' ? 'flopcard' : ''}">
     <div class="wtop">${thumb}
       <div class="wmeta">
@@ -944,7 +971,7 @@ function renderWinners() {
       <div class="acard"><span class="lbl">Winners</span><b style="color:var(--ac)">${wins.length}</b><span class="sub">${pName ? d.rules.win + '× usual on ' + pName : d.rules.win + '× average or a ' + (d.rules.breakout || 3) + '× breakout'}</span></div>
       <div class="acard"><span class="lbl">Underperformed</span><b style="color:var(--dn)">${flops.length}</b><span class="sub">${d.rules.flop}× usual or worse</span></div>
       <div class="acard"><span class="lbl">Hooks analysed</span><b>${a.analyzed}<span style="font-size:14px;color:var(--mu)"> / ${a.youtube}</span></b>
-        <button type="button" class="btn ${a.analyzed < a.youtube ? 'pri' : ''}" data-act="wanalyze" ${W.running ? 'disabled' : ''}>${W.running ? 'Analysing…' : a.analyzed < a.youtube ? 'Analyse new videos' : 'Re-check for new'}</button></div>
+        <button type="button" class="btn ${a.analyzed < a.youtube ? 'pri' : ''}" data-act="wanalyze" ${W.running ? 'disabled' : ''}>${W.running ? 'Analysing…' : a.analyzed < a.youtube ? 'Analyse all new' : 'Re-check for new'}</button></div>
     </div>
     ${W.runMsg ? `<div class="run ${W.runWarn ? 'warn' : ''}">${esc(W.runMsg)}</div>` : ''}
     ${wins.length ? `<div class="wgrid">${wins.map(s => winCard(s, all)).join('')}</div>`
@@ -995,7 +1022,7 @@ function renderWinners() {
         <span class="st ${f.status}">${f.status}</span><span class="m">${f.confidence}</span><span class="m">${f.videos}</span>
         <span class="m">${f.wins}</span><span class="m">${f.flops}</span><span class="m">${xLabel(f.avgScore)}</span>
         <span class="bh" title="${esc(f.bestTitle)}">${f.bestHook ? '“' + esc(f.bestHook) + '”' : esc(f.bestTitle)}</span></div>`).join('')}
-    </div>` : `<div class="state" style="min-height:120px">The library fills in once hooks are analysed. Press "Analyse new videos" above.</div>`}`;
+    </div>` : `<div class="state" style="min-height:120px">The library fills in once hooks are analysed. Press "Analyse all new" above, or analyse single videos from their cards.</div>`}`;
 }
 
 /* ---------- events ---------- */
@@ -1025,6 +1052,7 @@ document.addEventListener('click', e => {
       render(); loadWinners(); break;
     case 'wtopic': W.topic = v; renderWinners(); break;
     case 'wsort': W.sort = v; renderWinners(); break;
+    case 'wone': analyzeOneVideo(v); break;
     case 'wopen': W.open = W.open === v ? null : v; renderWinners(); break;
     case 'wanalyze': runAnalyze(); break;
     case 'wretry': loadWinners(true); break;
