@@ -9,14 +9,13 @@ import { STATS_DS, queryAll, teamOk, todayIST, daysAgoIST } from '../lib/notion.
 import { normalizeRow, buildScripts, formatLibrary, platformView, WIN, FLOP, MIN_AGE, BREAKOUT } from '../lib/score.js';
 import { CLIENTS, clientByName } from '../lib/clients.js';
 
-const LOOKBACK_DAYS = 120;
 const CACHE_MS = 5 * 60000;
 let cache = null; // { at, rows }
 
 async function allRows(fresh) {
   if (cache && !fresh && Date.now() - cache.at < CACHE_MS) return cache.rows;
   const pages = await queryAll(STATS_DS(), {
-    filter: { property: 'Posted', date: { on_or_after: daysAgoIST(LOOKBACK_DAYS) } },
+    // Everything ever synced, so "All time" goes back to the start of each creator's data.
     sorts: [{ property: 'Posted', direction: 'descending' }]
   });
   const rows = pages.map(normalizeRow);
@@ -32,7 +31,7 @@ export default async function handler(req, res) {
   const all = !q.client || String(q.client).toLowerCase() === 'all';
   const c = all ? null : clientByName(q.client);
   if (!all && !c) return res.status(400).json({ error: `No client called "${q.client}"` });
-  const days = [7, 14, 21, 30, 60, 90].includes(+q.days) ? +q.days : 30;
+  const days = q.days === 'all' ? 'all' : [7, 14, 21, 30, 60, 90].includes(+q.days) ? +q.days : 'all';
   const format = q.format === 'long' ? 'long' : 'short';
   const plat = ['yt', 'tt', 'ig', 'fb'].includes(q.plat) ? q.plat : 'all';
 
@@ -42,7 +41,7 @@ export default async function handler(req, res) {
     const scripts = buildScripts(rows, today);
     // With a platform picked, every script is judged on that platform's numbers alone.
     const mine = platformView(scripts.filter(s => (all || s.client === c.name) && s.format === format), plat);
-    const inWindow = mine.filter(s => s.age <= days);
+    const inWindow = days === 'all' ? mine : mine.filter(s => s.age <= days);
     // The library looks at the last 90 days whatever window is picked, so it has enough to go on.
     const library = formatLibrary(mine.filter(s => s.age <= 90));
 
@@ -56,7 +55,7 @@ export default async function handler(req, res) {
       clients: CLIENTS.map(x => x.name),
       days, format, plat,
       rules: { win: WIN, flop: FLOP, minAge: MIN_AGE, breakout: BREAKOUT },
-      scripts: inWindow.sort((a, b) => (b.score ?? -1) - (a.score ?? -1)),
+      scripts: inWindow.sort((a, b) => b.views - a.views),
       library,
       topics: Object.entries(topics).sort((a, b) => b[1] - a[1]).map(([name, n]) => ({ name, n })),
       analysis: { youtube: ytRows.length, analyzed: ytRows.filter(r => r.analyzed).length },
