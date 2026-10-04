@@ -216,7 +216,11 @@ details.more>div{margin-top:14px}
 .st.Test{color:#F5B971;background:rgba(245,185,113,.12)}
 .st.Avoid{color:var(--dn);background:rgba(242,139,122,.14)}
 .rk{display:flex;flex-direction:column;gap:2px}
-.rr{display:grid;grid-template-columns:34px 44px minmax(0,1fr) minmax(0,260px) 76px 92px;gap:12px;align-items:center;padding:8px 10px;border-radius:8px;font-size:13px;width:100%;border:0;background:transparent;text-align:left}
+.wsum{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;font-size:13px;color:var(--mu);padding:12px 14px;background:var(--s2);border-radius:10px}
+.wsum b{color:var(--tx);font-size:15px;font-weight:600}
+.wsum .hk{margin-left:auto;display:flex;align-items:center;gap:10px}
+@media (max-width:760px){.wsum .hk{margin-left:0}}
+.rr{display:grid;grid-template-columns:34px 44px minmax(0,1fr) minmax(0,240px) 76px 130px;gap:12px;align-items:center;padding:8px 10px;border-radius:8px;font-size:13px;width:100%;border:0;background:transparent;text-align:left}
 .rr.hd{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu2);padding-bottom:6px}
 button.rr:hover{background:#1A1D22}
 button.rr.on{background:#22262C}
@@ -226,11 +230,12 @@ button.rr.on{background:#22262C}
 .rr .tt2 b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rr .tt2 span{font-size:11px;color:var(--mu);font-family:var(--mono)}
 .rr .m{font-family:var(--mono);color:var(--tx2)}
+.rr .score{justify-self:start;white-space:nowrap}
 .rr .pl{flex-wrap:nowrap;overflow:hidden}
 .rdetail{padding:6px 10px 14px 100px}
 .rdetail .wcard{max-width:760px}
 @media (max-width:760px){.wstats{grid-template-columns:repeat(2,minmax(0,1fr))}.wgrid{grid-template-columns:1fr}
-  .rr{grid-template-columns:26px 36px minmax(0,1fr) 70px}.rr .pl,.rr .vw{display:none}.rr .th2{width:36px;height:48px}.rdetail{padding-left:0}}
+  .rr{grid-template-columns:22px 36px minmax(0,1fr) auto;gap:8px}.rr .vp{display:none}#wins .ctrls{max-width:100%;min-width:0}.rr .pl,.rr .vw{display:none}.rr .th2{width:36px;height:48px}.rdetail{padding-left:0}}
 
 @media (max-width:760px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:1180px){
@@ -264,7 +269,7 @@ button.rr.on{background:#22262C}
       <span class="tag" id="demoTag" hidden>SAMPLE DATA</span>
       <nav class="seg sm views" id="views" aria-label="View" hidden>
         <button type="button" data-act="view" data-v="perf">Performance</button>
-        <button type="button" data-act="view" data-v="winners">Winners</button>
+        <button type="button" data-act="view" data-v="winners">Top videos</button>
       </nav>
     </div>
     <nav class="seg" id="clients" aria-label="Clients"></nav>
@@ -322,9 +327,9 @@ const S = {
 
 // Winners tab state (team view only)
 const W = {
-  client: qs.get('wclient') || null, days: +qs.get('days') || 30, format: 'short', topic: 'all',
+  client: qs.get('wclient') || null, days: qs.get('days') && qs.get('days') !== 'all' ? +qs.get('days') : 'all', format: 'short', topic: 'all',
   plat: ['yt', 'tt', 'ig', 'fb'].includes(qs.get('wplat')) ? qs.get('wplat') : 'all',
-  sort: 'score', open: null, busy: {},
+  sort: 'views', open: null, busy: {}, limit: 50,
   data: null, key: '', loading: false, error: null, running: false, runMsg: '', runWarn: false
 };
 
@@ -926,103 +931,88 @@ function winCard(s, all) {
     ${body}</article>`;
 }
 
+// A video counts as viral when it hit 3x the creator's usual views on at least one platform.
+const isViral = s => !!(s.best && s.best.ratio != null && s.best.ratio >= 3);
+
 function renderWinners() {
   $('sync').className = 'sync' + (busy ? ' soft' : '');
-  $('sync').innerHTML = W.loading ? '<i></i>Loading winners…' : W.data ? '<i></i>Updated ' + ago(W.data.syncedAt) : '<i></i>Refresh';
+  $('sync').innerHTML = W.loading ? '<i></i>Loading videos…' : W.data ? '<i></i>Updated ' + ago(W.data.syncedAt) : '<i></i>Refresh';
   const d = W.data;
   const all = (W.client || 'all') === 'all';
   const who = all ? 'All creators' : W.client;
+  $('wall').innerHTML = '';
   if (!d || W.error) {
     $('wboard').innerHTML = W.error
-      ? `<div class="state"><div>Couldn't load the winners. ${esc(W.error)}</div><div class="btns"><button type="button" class="btn pri" data-act="wretry">Try again</button></div></div>`
-      : `<div class="state">Scoring ${esc(who)}'s scripts…</div>`;
+      ? `<div class="state"><div>Couldn't load the videos. ${esc(W.error)}</div><div class="btns"><button type="button" class="btn pri" data-act="wretry">Try again</button></div></div>`
+      : `<div class="state">Loading ${esc(who)}'s videos…</div>`;
     $('wlib').innerHTML = '';
-    $('wall').innerHTML = '';
     return;
   }
-  const list = d.scripts.filter(s => W.topic === 'all' || s.topics.includes(W.topic));
-  const wins = list.filter(s => s.verdict === 'win');
-  const flops = list.filter(s => s.verdict === 'flop').sort((a, b) => a.score - b.score);
-  const scored = list.filter(s => s.score != null);
-  const young = list.filter(s => s.verdict === 'new').length;
-  const a = d.analysis;
-  const fmtName = W.format === 'short' ? 'short-form' : 'long-form';
   const pName = W.plat !== 'all' ? P[W.plat].name : null;
-  const rule = pName
-    ? `Judged on ${pName} only: a winner gets at least ${d.rules.win}× that creator's usual ${pName} views.`
-    : `A winner averages at least ${d.rules.win}× that creator's usual views across its platforms, or breaks out at ${d.rules.breakout || 3}× or more on one of them.`;
+  const list = d.scripts.filter(s => W.topic === 'all' || s.topics.includes(W.topic));
+  const ranked = list.slice().sort(W.sort === 'viral'
+    ? (x, y) => ((y.best && y.best.ratio) ?? -1) - ((x.best && x.best.ratio) ?? -1) || y.views - x.views
+    : (x, y) => y.views - x.views);
+  const viral = list.filter(isViral).length;
+  const total = list.reduce((t, s) => t + s.views, 0);
+  const a = d.analysis;
+  const span = W.days === 'all' ? 'since tracking started' : 'in the last ' + W.days + ' days';
+  const seg = (act, cur, opts) => `<div class="seg sm">${opts.map(([k, l]) =>
+    `<button type="button" data-act="${act}" data-v="${k}" class="${String(cur) === String(k) ? 'on' : ''}" aria-pressed="${String(cur) === String(k)}">${l}</button>`).join('')}</div>`;
+
+  const badge = s => {
+    if (s.verdict === 'new') return '<span class="score ok" title="Under 3 days old">new</span>';
+    if (isViral(s)) return `<span class="score win" title="${P[s.best.plat].name}: ${xLabel(s.best.ratio)} this creator's usual views">VIRAL ${xLabel(s.best.ratio)}${pName ? '' : `<span class="vp"> ${{ yt: 'YT', tt: 'TT', ig: 'IG', fb: 'FB' }[s.best.plat]}</span>`}</span>`;
+    return s.best && s.best.ratio != null ? `<span class="score ok" title="Best platform vs this creator's usual">${xLabel(s.best.ratio)} usual</span>` : '';
+  };
 
   $('wboard').innerHTML = `
-    <div class="bhead"><div><h2>Winning scripts${pName ? ' on ' + pName : ''}</h2>
-      <p>${esc(who)}, ${fmtName}, posted in the last ${W.days} days. ${rule} Posts are judged once they're ${d.rules.minAge} days old.</p></div>
-      <div class="ctrls">
-        <div class="seg sm" aria-label="Platform">${[['all', 'All platforms']].concat(Object.keys(P).map(k => [k, P[k].name])).map(([k, l]) =>
-          `<button type="button" data-act="wplat" data-v="${k}" class="${W.plat === k ? 'on' : ''}" aria-pressed="${W.plat === k}">${k === 'all' ? '' : `<span class="dot" style="background:${P[k].color};margin-right:6px"></span>`}${l}</button>`).join('')}</div>
-        <div class="seg sm" aria-label="Window">${[7, 14, 21, 30, 60].map(n =>
-          `<button type="button" data-act="wdays" data-v="${n}" class="${W.days === n ? 'on' : ''}" aria-pressed="${W.days === n}">${n}d</button>`).join('')}</div>
-        <div class="seg sm" aria-label="Format">${[['short', 'Short-form'], ['long', 'Long-form']].map(([k, l]) =>
-          `<button type="button" data-act="wformat" data-v="${k}" class="${W.format === k ? 'on' : ''}" aria-pressed="${W.format === k}">${l}</button>`).join('')}</div>
-      </div></div>
-    ${d.topics.length ? `<div class="topics" aria-label="Topic">
-      <button type="button" data-act="wtopic" data-v="all" class="${W.topic === 'all' ? 'on' : ''}">All topics</button>
-      ${d.topics.map(t => `<button type="button" data-act="wtopic" data-v="${esc(t.name)}" class="${W.topic === t.name ? 'on' : ''}">${esc(t.name)}<span>${t.n}</span></button>`).join('')}</div>` : ''}
-    <div class="wstats">
-      <div class="acard"><span class="lbl">Scripts scored</span><b>${scored.length}</b><span class="sub">${young ? young + ' too new to judge' : 'of ' + list.length + ' posted'}</span></div>
-      <div class="acard"><span class="lbl">Winners</span><b style="color:var(--ac)">${wins.length}</b><span class="sub">${pName ? d.rules.win + '× usual on ' + pName : d.rules.win + '× average or a ' + (d.rules.breakout || 3) + '× breakout'}</span></div>
-      <div class="acard"><span class="lbl">Underperformed</span><b style="color:var(--dn)">${flops.length}</b><span class="sub">${d.rules.flop}× usual or worse</span></div>
-      <div class="acard"><span class="lbl">Hooks analysed</span><b>${a.analyzed}<span style="font-size:14px;color:var(--mu)"> / ${a.youtube}</span></b>
-        <button type="button" class="btn ${a.analyzed < a.youtube ? 'pri' : ''}" data-act="wanalyze" ${W.running ? 'disabled' : ''}>${W.running ? 'Analysing…' : a.analyzed < a.youtube ? 'Analyse all new' : 'Re-check for new'}</button></div>
+    <div class="bhead"><div><h2>Top videos${pName ? ' on ' + pName : ''}</h2>
+      <p>${esc(who)}, ${W.format === 'short' ? 'short-form' : 'long-form'}, ${span}. <b style="color:var(--ac);font-weight:500">VIRAL</b> means it got 3× or more that creator's usual views on a platform. Click any video to see its hook.</p></div></div>
+    <div class="ctrls" style="flex-wrap:wrap;gap:8px">
+      ${seg('wdays', W.days, [['all', 'All time'], [90, '90 days'], [30, '30 days'], [7, '7 days']])}
+      ${seg('wsort', W.sort, [['views', 'Most views'], ['viral', 'Most viral']])}
+      ${seg('wplat', W.plat, [['all', 'All platforms']].concat(Object.keys(P).map(k => [k, P[k].name])))}
+      ${seg('wformat', W.format, [['short', 'Short'], ['long', 'Long']])}
+    </div>
+    <div class="wsum">
+      <span><b>${list.length}</b> videos</span>
+      <span><b>${fmt(total)}</b> views</span>
+      <span><b style="color:var(--ac)">${viral}</b> went viral</span>
+      <span class="hk">Hooks read: <b>${a.analyzed}</b> of ${a.youtube}
+        <button type="button" class="btn" data-act="wanalyze" ${W.running ? 'disabled' : ''} style="height:30px;padding:0 12px">${W.running ? 'Analysing…' : 'Analyse all new'}</button></span>
     </div>
     ${W.runMsg ? `<div class="run ${W.runWarn ? 'warn' : ''}">${esc(W.runMsg)}</div>` : ''}
-    ${wins.length ? `<div class="wgrid">${wins.map(s => winCard(s, all)).join('')}</div>`
-      : `<div class="state" style="min-height:140px">${scored.length ? 'No script hit ' + d.rules.win + '× usual in this window. Try a longer window or another topic.' : 'Nothing here is old enough to score yet. Try a longer window.'}</div>`}
-    ${flops.length ? `<details class="more"><summary>Underperformed<span>${flops.length} scripts, useful for spotting hooks to avoid</span></summary>
-      <div class="wgrid">${flops.map(s => winCard(s, all)).join('')}</div></details>` : ''}`;
-
-  // Every video in the current filters, highest to lowest. Click a row for the full card.
-  const ranked = list.slice().sort(W.sort === 'views'
-    ? (x, y) => y.views - x.views
-    : (x, y) => (y.score ?? -1) - (x.score ?? -1) || y.views - x.views);
-  const vchip = s => {
-    const c = s.verdict === 'win' ? 'win' : s.verdict === 'flop' ? 'flop' : 'ok';
-    return s.score == null ? `<span class="score ok">${s.verdict === 'new' ? 'too new' : '–'}</span>` : `<span class="score ${c}">${xLabel(s.score)}</span>`;
-  };
-  $('wall').innerHTML = `
-    <div class="bhead"><div><h2>All videos, ranked${pName ? ' on ' + pName : ''}</h2>
-      <p>Every ${fmtName} video ${all ? 'from all creators ' : 'from ' + esc(W.client) + ' '}posted in the last ${W.days} days${W.topic !== 'all' ? ' about ' + esc(W.topic) : ''}, from highest to lowest. Click any row to open its full breakdown.</p></div>
-      <div class="ctrls"><div class="seg sm" aria-label="Sort">
-        <button type="button" data-act="wsort" data-v="score" class="${W.sort === 'score' ? 'on' : ''}">vs usual</button>
-        <button type="button" data-act="wsort" data-v="views" class="${W.sort === 'views' ? 'on' : ''}">Total views</button></div></div></div>
+    ${d.topics.length ? `<div class="topics">
+      <button type="button" data-act="wtopic" data-v="all" class="${W.topic === 'all' ? 'on' : ''}">All topics</button>
+      ${d.topics.map(t => `<button type="button" data-act="wtopic" data-v="${esc(t.name)}" class="${W.topic === t.name ? 'on' : ''}">${esc(t.name)}<span>${t.n}</span></button>`).join('')}</div>` : ''}
     ${ranked.length ? `<div class="rk">
-      <div class="rr hd"><span>#</span><span></span><span>Video</span><span class="pl">Platforms</span><span class="vw">Views</span><span>vs usual</span></div>
-      ${ranked.map((s, i) => {
+      <div class="rr hd"><span>#</span><span></span><span>Video</span><span class="pl">Platforms</span><span class="vw">Views</span><span></span></div>
+      ${ranked.slice(0, W.limit).map((s, i) => {
         const open = W.open === s.id;
         const pl = s.platforms.map(p => `<span class="pp"${W.plat !== 'all' && p.plat !== W.plat ? ' style="opacity:.45"' : ''}><span class="dot" style="background:${P[p.plat].color}"></span>${fmt(p.views)}</span>`).join('');
         return `<button type="button" class="rr ${open ? 'on' : ''}" data-act="wopen" data-v="${esc(s.id)}" aria-expanded="${open}">
           <span class="n">${i + 1}</span>
           ${s.thumb ? `<img class="th2" src="${esc(s.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<span class="th2"></span>'}
-          <span class="tt2"><b>${esc(s.title)}</b><span>${all ? esc(s.client) + ' · ' : ''}${dateLabel(s.posted)}${s.hookType ? ' · ' + esc(s.hookType) : ''}${s.early ? ' · early' : ''}</span></span>
+          <span class="tt2"><b>${esc(s.title)}</b><span>${all ? esc(s.client) + ' · ' : ''}${dateLabel(s.posted)}${s.posted && s.posted.slice(0, 4) !== TODAY().slice(0, 4) ? ' ' + s.posted.slice(0, 4) : ''}${s.hookType ? ' · ' + esc(s.hookType) : ''}</span></span>
           <span class="pl">${pl}</span>
-          <span class="m vw">${fmt(s.views)}</span>
-          ${vchip(s)}</button>
+          <span class="m vw" style="color:var(--tx);font-weight:500">${fmt(s.views)}</span>
+          ${badge(s)}</button>
           ${open ? `<div class="rdetail">${winCard(s, all)}</div>` : ''}`;
-      }).join('')}</div>`
-      : '<div class="state" style="min-height:120px">No videos in this window. Try a longer one.</div>'}`;
+      }).join('')}</div>
+      ${ranked.length > W.limit ? `<div style="text-align:center"><button type="button" class="btn" data-act="wmore">Show more (${ranked.length - W.limit} left)</button></div>` : ''}`
+      : '<div class="state" style="min-height:140px">No videos here yet. Try "All time" or another platform.</div>'}`;
 
   const lib = d.library;
   const cols = (all ? '90px ' : '') + '130px 70px 90px 64px 52px 52px 64px minmax(200px,1fr)';
-  $('wlib').innerHTML = `
-    <div class="bhead"><div><h2>Format library</h2>
-      <p>How each hook type has done for ${all ? 'each creator' : esc(W.client)}${pName ? ' on ' + pName : ''} over the last 90 days. <b style="color:var(--ac);font-weight:500">Use</b> means it keeps winning, <b style="color:#F5B971;font-weight:500">Test</b> needs more data, and <b style="color:var(--dn);font-weight:500">Avoid</b> keeps underperforming. ${pName
-        ? 'WINNING FORMATS in Notion keeps the all-platforms view, so this ' + pName + ' view is for reading here only.'
-        : 'This is what gets saved to WINNING FORMATS in Notion for the script routine to read.'}</p></div></div>
+  $('wlib').innerHTML = `<details class="more" style="border-top:0;padding-top:0"><summary>Hook patterns<span>which hook types keep working for ${all ? 'each creator' : esc(W.client)} (last 90 days, fills in as hooks are read)</span></summary><div>
     ${lib.length ? `<div class="lib" style="--cols:${cols}">
       <div class="lr hd">${all ? '<span>Creator</span>' : ''}<span>Hook type</span><span>Status</span><span>Confidence</span><span>Videos</span><span>Wins</span><span>Flops</span><span>Avg</span><span>Best hook</span></div>
       ${lib.map(f => `<div class="lr">${all ? `<span>${esc(f.client)}</span>` : ''}<span>${esc(f.hookType)}</span>
         <span class="st ${f.status}">${f.status}</span><span class="m">${f.confidence}</span><span class="m">${f.videos}</span>
         <span class="m">${f.wins}</span><span class="m">${f.flops}</span><span class="m">${xLabel(f.avgScore)}</span>
         <span class="bh" title="${esc(f.bestTitle)}">${f.bestHook ? '“' + esc(f.bestHook) + '”' : esc(f.bestTitle)}</span></div>`).join('')}
-    </div>` : `<div class="state" style="min-height:120px">The library fills in once hooks are analysed. Press "Analyse all new" above, or analyse single videos from their cards.</div>`}`;
+    </div>` : '<p class="note">Nothing yet. Read a few hooks with "Analyse this video" and the patterns show up here.</p>'}</div></details>`;
 }
 
 /* ---------- events ---------- */
@@ -1044,7 +1034,8 @@ document.addEventListener('click', e => {
       W.client = v;
       { const u = new URL(location.href); u.searchParams.set('wclient', v); history.replaceState(null, '', u); }
       render(); loadWinners(); break;
-    case 'wdays': W.days = +v; render(); loadWinners(); break;
+    case 'wdays': W.days = v === 'all' ? 'all' : +v; W.limit = 50; render(); loadWinners(); break;
+    case 'wmore': W.limit += 50; renderWinners(); break;
     case 'wformat': W.format = v; render(); loadWinners(); break;
     case 'wplat':
       W.plat = v;
