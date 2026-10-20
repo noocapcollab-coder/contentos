@@ -23,6 +23,21 @@ const headers = () => ({
   'Content-Type': 'application/json'
 });
 
+// Notion allows about 3 requests a second per integration, and the n8n syncs use the
+// same token, so while a sync is running reads can get a 429. Wait and retry instead
+// of failing the page.
+async function notionPost(url, body) {
+  for (let attempt = 0; ; attempt++) {
+    const r = await fetch(url, { method: 'POST', headers: headers(), body: JSON.stringify(body) });
+    if ((r.status === 429 || r.status >= 500) && attempt < 5) {
+      const after = parseFloat(r.headers.get('retry-after')) || 0;
+      await new Promise(res => setTimeout(res, Math.max(after * 1000, 800 * (attempt + 1))));
+      continue;
+    }
+    return r;
+  }
+}
+
 const PLAT = { youtube: 'yt', tiktok: 'tt', instagram: 'ig', facebook: 'fb' };
 
 // Case-insensitive property lookup, since Notion column casing drifts.
@@ -70,11 +85,8 @@ function normalize(page) {
 
 // Follower / subscriber counts for one client, one row per platform.
 async function fetchAudience(name) {
-  const r = await fetch(`${NOTION}/data_sources/${AUDIENCE_DS}/query`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({ filter: { property: 'Client', select: { equals: name } }, page_size: 20 })
-  });
+  const r = await notionPost(`${NOTION}/data_sources/${AUDIENCE_DS}/query`,
+    { filter: { property: 'Client', select: { equals: name } }, page_size: 20 });
   const j = await r.json();
   if (!r.ok) return [];   // the dashboard works fine without these
   return (j.results || []).map(page => {
@@ -97,10 +109,7 @@ async function fetchClient(name, since, until) {
   const rows = [];
   let cursor;
   do {
-    const r = await fetch(`${NOTION}/data_sources/${process.env.STATS_DS}/query`, {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({
+    const r = await notionPost(`${NOTION}/data_sources/${process.env.STATS_DS}/query`, {
         filter: { and: [
           { property: 'Client', select: { equals: name } },
           { property: 'Posted', date: { on_or_after: since } },
@@ -109,7 +118,6 @@ async function fetchClient(name, since, until) {
         sorts: [{ property: 'Posted', direction: 'descending' }],
         page_size: 100,
         ...(cursor ? { start_cursor: cursor } : {})
-      })
     });
     const j = await r.json();
     if (!r.ok) throw new Error((j && j.message) || `Notion returned ${r.status}`);

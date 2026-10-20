@@ -525,7 +525,7 @@ async function prefetch() {
   for (const name of S.clients) {
     if (name === S.client || covers(CACHE.get(name))) continue;
     try { await fetchClient(name); } catch (e) { /* retried on the next load */ }
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 1500)); // spaced out so the n8n syncs keep their share of Notion's rate limit
   }
   prefetching = false;
 }
