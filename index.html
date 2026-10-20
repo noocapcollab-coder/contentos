@@ -322,10 +322,10 @@ const S = {
   demo: qs.get('demo') === '1',
   platform: 'all', format: 'all', from: null, to: null, sort: 'top', selId: null,
   videos: [], audience: [], synced: null, loading: true, error: null,
-  view: !KEY && qs.get('view') === 'winners' ? 'winners' : 'perf'
+  view: qs.get('view') === 'winners' ? 'winners' : 'perf'
 };
 
-// Winners tab state (team view only)
+// Top videos tab state (team view, and a creator's own portal link)
 const W = {
   client: qs.get('wclient') || null, days: qs.get('days') && qs.get('days') !== 'all' ? +qs.get('days') : 'all', format: 'short', topic: 'all',
   plat: ['yt', 'tt', 'ig', 'fb'].includes(qs.get('wplat')) ? qs.get('wplat') : 'all',
@@ -591,8 +591,8 @@ function render() {
   $('demoTag').hidden = !S.demo;
 
   const names = S.clients.length ? S.clients : ROSTER;
-  const winView = S.view === 'winners' && !portal;
-  $('views').hidden = portal;
+  const winView = S.view === 'winners';
+  $('views').hidden = false;
   $('views').querySelectorAll('button').forEach(b => {
     const on = b.dataset.v === (winView ? 'winners' : 'perf');
     b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
@@ -799,7 +799,8 @@ function render() {
 /* ---------- Winners tab ---------- */
 function apiUrl(path, params) {
   const p = new URLSearchParams();
-  if (TEAM) p.set('team', TEAM);
+  if (KEY) p.set('k', KEY);          // portal links are locked to their own creator by the server
+  else if (TEAM) p.set('team', TEAM);
   for (const k in params) if (params[k] !== '' && params[k] != null) p.set(k, params[k]);
   return path + '?' + p.toString();
 }
@@ -905,7 +906,7 @@ function winCard(s, all) {
     body = `<div class="chips">${s.topics.map(t => `<span>${esc(t)}</span>`).join('')}</div><p class="note">${esc(s.why || 'Analysed, but no hook could be read.')}</p>`;
   } else {
     body = s.analyzeId
-      ? `<p class="note">${s.analyzePlat === 'yt' ? 'Hook not analysed yet.' : `No YouTube Short matched this reel, so it'll be read straight from ${P[s.analyzePlat].name}.`}</p>`
+      ? `<p class="note">${S.portal ? 'The hook breakdown for this video is on its way.' : s.analyzePlat === 'yt' ? 'Hook not analysed yet.' : `No YouTube Short matched this reel, so it'll be read straight from ${P[s.analyzePlat].name}.`}</p>`
       : '<p class="note">No video link is saved for this reel, so it can\'t be analysed.</p>';
   }
   // One-video analysis, so you only spend credits on the videos you care about.
@@ -913,7 +914,7 @@ function winCard(s, all) {
   // Analysed videos just show their saved breakdown: no button, so no tokens spent twice.
   const btn = s.analyzed
     ? `<span class="note" title="Read from Notion. To redo it, clear the Analyzed date on this video in CONTENT STATS.">Saved analysis · ${dateLabel(s.analyzedOn)}${s.analyzedPlat && s.analyzedPlat !== 'yt' ? ' · from ' + P[s.analyzedPlat].name : ''}</span>`
-    : !s.analyzeId ? '' : busy && busy.run
+    : !s.analyzeId || S.portal ? '' : busy && busy.run
     ? `<button type="button" class="btn" disabled style="height:34px">Analysing…</button>`
     : `<button type="button" class="btn pri" data-act="wone" data-v="${esc(s.analyzeId)}" style="height:34px">Analyse this video</button>`;
   body += `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${btn}${busy && busy.msg
@@ -938,8 +939,8 @@ function renderWinners() {
   $('sync').className = 'sync' + (busy ? ' soft' : '');
   $('sync').innerHTML = W.loading ? '<i></i>Loading videos…' : W.data ? '<i></i>Updated ' + ago(W.data.syncedAt) : '<i></i>Refresh';
   const d = W.data;
-  const all = (W.client || 'all') === 'all';
-  const who = all ? 'All creators' : W.client;
+  const all = !S.portal && (W.client || 'all') === 'all';
+  const who = S.portal ? ((d && d.client) || S.client || 'Your') : all ? 'All creators' : W.client;
   $('wall').innerHTML = '';
   if (!d || W.error) {
     $('wboard').innerHTML = W.error
@@ -980,7 +981,7 @@ function renderWinners() {
       <span><b>${fmt(total)}</b> views</span>
       <span><b style="color:var(--ac)">${viral}</b> went viral</span>
       <span class="hk">Hooks read: <b>${a.analyzed}</b> of ${a.youtube}
-        <button type="button" class="btn" data-act="wanalyze" ${W.running ? 'disabled' : ''} style="height:30px;padding:0 12px">${W.running ? 'Analysing…' : 'Analyse all new'}</button></span>
+        ${S.portal ? '' : `<button type="button" class="btn" data-act="wanalyze" ${W.running ? 'disabled' : ''} style="height:30px;padding:0 12px">${W.running ? 'Analysing…' : 'Analyse all new'}</button>`}</span>
     </div>
     ${W.runMsg ? `<div class="run ${W.runWarn ? 'warn' : ''}">${esc(W.runMsg)}</div>` : ''}
     ${d.topics.length ? `<div class="topics">
@@ -1005,7 +1006,7 @@ function renderWinners() {
 
   const lib = d.library;
   const cols = (all ? '90px ' : '') + '130px 70px 90px 64px 52px 52px 64px minmax(200px,1fr)';
-  $('wlib').innerHTML = `<details class="more" style="border-top:0;padding-top:0"><summary>Hook patterns<span>which hook types keep working for ${all ? 'each creator' : esc(W.client)} (last 90 days, fills in as hooks are read)</span></summary><div>
+  $('wlib').innerHTML = `<details class="more" style="border-top:0;padding-top:0"><summary>Hook patterns<span>which hook types keep working for ${all ? 'each creator' : esc(S.portal ? who : W.client)} (last 90 days, fills in as hooks are read)</span></summary><div>
     ${lib.length ? `<div class="lib" style="--cols:${cols}">
       <div class="lr hd">${all ? '<span>Creator</span>' : ''}<span>Hook type</span><span>Status</span><span>Confidence</span><span>Videos</span><span>Wins</span><span>Flops</span><span>Avg</span><span>Best hook</span></div>
       ${lib.map(f => `<div class="lr">${all ? `<span>${esc(f.client)}</span>` : ''}<span>${esc(f.hookType)}</span>
@@ -1048,7 +1049,7 @@ document.addEventListener('click', e => {
     case 'wanalyze': runAnalyze(); break;
     case 'wretry': loadWinners(true); break;
     case 'refresh':
-      if (S.view === 'winners' && !S.portal) { loadWinners(true); break; }
+      if (S.view === 'winners') { loadWinners(true); break; }
       CACHE.clear(); load(true); break;
     case 'retry': S.loading = true; S.error = null; render(); load(true); break;
     case 'demo': S.demo = true; S.loading = true; render(); load(); break;

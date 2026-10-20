@@ -17,6 +17,7 @@
 // ANTHROPIC_API_KEY as a fallback. Optional: TEAM_KEY, CRON_SECRET, FORMATS_DS,
 // GATEWAY_MODEL, ANALYZE_MODEL, ANTHROPIC_WORKSPACE_ID, USE_ANTHROPIC_DIRECT=1.
 
+import { FOCUS } from '../lib/clients.js';
 import { STATS_DS, FORMATS_DS, queryAll, patchPage, createPage, rt, teamOk, todayIST, daysAgoIST, prop, text } from '../lib/notion.js';
 import { normalizeRow, buildScripts, formatLibrary } from '../lib/score.js';
 import { TOPICS, HOOK_TYPES } from '../lib/topics.js';
@@ -149,12 +150,16 @@ async function runBatch(q, started, cron) {
   const n = cron ? 40 : Math.min(Math.max(parseInt(q.n, 10) || 6, 1), 12);
   // One video at a time: Supadata's small plans allow about one request a second.
   const lanes = 1;
+  // A named creator (or the FOCUS list in lib/clients.js) gets their whole history read;
+  // the everyone-at-once run sticks to the last LOOKBACK_DAYS so it stays cheap.
+  const who = q.client ? [String(q.client)] : FOCUS;
   const filter = { and: [
     { property: 'Platform', select: { equals: 'YouTube' } },
-    { property: 'Analyzed', date: { is_empty: true } },
-    { property: 'Posted', date: { on_or_after: daysAgoIST(LOOKBACK_DAYS) } }
+    { property: 'Analyzed', date: { is_empty: true } }
   ] };
-  if (q.client) filter.and.push({ property: 'Client', select: { equals: String(q.client) } });
+  if (!who.length) filter.and.push({ property: 'Posted', date: { on_or_after: daysAgoIST(LOOKBACK_DAYS) } });
+  else if (who.length === 1) filter.and.push({ property: 'Client', select: { equals: who[0] } });
+  else filter.and.push({ or: who.map(name => ({ property: 'Client', select: { equals: name } })) });
   const pages = await queryAll(STATS_DS(), { filter, sorts: [{ property: 'Posted', direction: 'descending' }], page_size: n + 1 }, 1);
   const todo = pages.map(normalizeRow);
   const batch = todo.slice(0, n);

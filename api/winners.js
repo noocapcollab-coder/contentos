@@ -3,11 +3,12 @@
 //   /api/winners?team=<TEAM_KEY>&client=Duncan&days=30&format=short
 //   client can be a name or "all". Add &fresh=1 to skip the 5-minute cache.
 //   &plat=yt|tt|ig|fb judges every script on that one platform only.
-// Team view only: clients never see this.
+// Team view with ?team=, or a client's own portal link with ?k=<portal key>, which
+// locks the data to that one creator.
 
 import { STATS_DS, queryAll, teamOk, todayIST, daysAgoIST } from '../lib/notion.js';
 import { normalizeRow, buildScripts, formatLibrary, platformView, WIN, FLOP, MIN_AGE, BREAKOUT } from '../lib/score.js';
-import { CLIENTS, clientByName } from '../lib/clients.js';
+import { CLIENTS, clientByName, clientByKey } from '../lib/clients.js';
 
 const CACHE_MS = 5 * 60000;
 let cache = null; // { at, rows }
@@ -25,11 +26,14 @@ async function allRows(fresh) {
 
 export default async function handler(req, res) {
   const q = req.query || {};
-  if (!teamOk(q)) return res.status(401).json({ error: 'Open this page with your team link (it has ?team= in it).' });
+  const portalClient = q.k ? clientByKey(String(q.k)) : null;
+  if (q.k && !portalClient) return res.status(403).json({ error: 'This link is no longer active. Ask your NOOCAP contact for a new one.' });
+  if (!portalClient && !teamOk(q)) return res.status(401).json({ error: 'Open this page with your team link (it has ?team= in it).' });
   if (!process.env.NOTION_TOKEN || !process.env.STATS_DS) return res.status(500).json({ error: 'NOTION_TOKEN and STATS_DS must be set in Vercel' });
 
-  const all = !q.client || String(q.client).toLowerCase() === 'all';
-  const c = all ? null : clientByName(q.client);
+  // A portal link only ever sees its own creator, whatever client it asks for.
+  const all = !portalClient && (!q.client || String(q.client).toLowerCase() === 'all');
+  const c = portalClient || (all ? null : clientByName(q.client));
   if (!all && !c) return res.status(400).json({ error: `No client called "${q.client}"` });
   const days = q.days === 'all' ? 'all' : [7, 14, 21, 30, 60, 90].includes(+q.days) ? +q.days : 'all';
   const format = q.format === 'long' ? 'long' : 'short';
@@ -52,7 +56,8 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'private, max-age=30');
     return res.status(200).json({
       client: all ? 'all' : c.name,
-      clients: CLIENTS.map(x => x.name),
+      clients: portalClient ? [portalClient.name] : CLIENTS.map(x => x.name),
+      portal: !!portalClient,
       days, format, plat,
       rules: { win: WIN, flop: FLOP, minAge: MIN_AGE, breakout: BREAKOUT },
       scripts: inWindow.sort((a, b) => b.views - a.views),
