@@ -17,7 +17,7 @@
 // ANTHROPIC_API_KEY as a fallback. Optional: TEAM_KEY, CRON_SECRET, FORMATS_DS,
 // GATEWAY_MODEL, ANALYZE_MODEL, ANTHROPIC_WORKSPACE_ID, USE_ANTHROPIC_DIRECT=1.
 
-import { FOCUS } from '../lib/clients.js';
+import { FOCUS, CLIENTS } from '../lib/clients.js';
 import { STATS_DS, FORMATS_DS, queryAll, patchPage, createPage, rt, teamOk, todayIST, daysAgoIST, prop, text } from '../lib/notion.js';
 import { normalizeRow, buildScripts, formatLibrary } from '../lib/score.js';
 import { TOPICS, HOOK_TYPES } from '../lib/topics.js';
@@ -152,13 +152,14 @@ async function runBatch(q, started, cron) {
   const lanes = 1;
   // A named creator (or the FOCUS list in lib/clients.js) gets their whole history read;
   // the everyone-at-once run sticks to the last LOOKBACK_DAYS so it stays cheap.
-  const who = q.client ? [String(q.client)] : FOCUS;
+  const who = q.client ? [String(q.client)] : FOCUS.length ? FOCUS : CLIENTS.map(c => c.name);
+  const recentOnly = !q.client && !FOCUS.length;
   const filter = { and: [
     { property: 'Platform', select: { equals: 'YouTube' } },
     { property: 'Analyzed', date: { is_empty: true } }
   ] };
-  if (!who.length) filter.and.push({ property: 'Posted', date: { on_or_after: daysAgoIST(LOOKBACK_DAYS) } });
-  else if (who.length === 1) filter.and.push({ property: 'Client', select: { equals: who[0] } });
+  if (recentOnly) filter.and.push({ property: 'Posted', date: { on_or_after: daysAgoIST(LOOKBACK_DAYS) } });
+  if (who.length === 1) filter.and.push({ property: 'Client', select: { equals: who[0] } });
   else filter.and.push({ or: who.map(name => ({ property: 'Client', select: { equals: name } })) });
   const pages = await queryAll(STATS_DS(), { filter, sorts: [{ property: 'Posted', direction: 'descending' }], page_size: n + 1 }, 1);
   const todo = pages.map(normalizeRow);
@@ -180,7 +181,8 @@ async function runBatch(q, started, cron) {
 
 async function rebuildLibrary() {
   const pages = await queryAll(STATS_DS(), { filter: { property: 'Posted', date: { on_or_after: daysAgoIST(LOOKBACK_DAYS) } } });
-  const scripts = buildScripts(pages.map(normalizeRow), todayIST()).filter(s => s.age <= 90);
+  const active = new Set(CLIENTS.map(c => c.name));
+  const scripts = buildScripts(pages.map(normalizeRow), todayIST()).filter(s => s.age <= 90 && active.has(s.client));
   const lib = formatLibrary(scripts);
 
   const existing = await queryAll(FORMATS_DS(), {});
