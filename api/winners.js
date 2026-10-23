@@ -9,7 +9,6 @@
 import { STATS_DS, queryAll, teamOk, todayIST, daysAgoIST } from '../lib/notion.js';
 import { normalizeRow, buildScripts, formatLibrary, platformView, WIN, FLOP, MIN_AGE, BREAKOUT } from '../lib/score.js';
 import { CLIENTS, clientByName, clientByKey } from '../lib/clients.js';
-const ACTIVE = new Set(CLIENTS.map(x => x.name));
 
 const CACHE_MS = 5 * 60000;
 let cache = null; // { at, rows }
@@ -45,12 +44,12 @@ export default async function handler(req, res) {
     const rows = await allRows(!!q.fresh);
     const scripts = buildScripts(rows, today);
     // With a platform picked, every script is judged on that platform's numbers alone.
-    const mine = platformView(scripts.filter(s => (all ? ACTIVE.has(s.client) : s.client === c.name) && s.format === format), plat);
+    const mine = platformView(scripts.filter(s => (all || s.client === c.name) && s.format === format), plat);
     const inWindow = days === 'all' ? mine : mine.filter(s => s.age <= days);
     // The library looks at the last 90 days whatever window is picked, so it has enough to go on.
     const library = formatLibrary(mine.filter(s => s.age <= 90));
 
-    const ytRows = rows.filter(r => r.plat === 'yt' && (all ? ACTIVE.has(r.client) : r.client === c.name));
+    const ytRows = rows.filter(r => r.plat === 'yt' && (all || r.client === c.name));
     const topics = {};
     inWindow.forEach(s => s.topics.forEach(t => { topics[t] = (topics[t] || 0) + 1; }));
 
