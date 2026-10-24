@@ -238,6 +238,34 @@ button.rr.on{background:#22262C}
   .rr{grid-template-columns:22px 36px minmax(0,1fr) auto;gap:8px}.rr .vp{display:none}#wins .ctrls{max-width:100%;min-width:0}.rr .pl,.rr .vw{display:none}.rr .th2{width:36px;height:48px}.rdetail{padding-left:0}}
 
 @media (max-width:760px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Highlights: the simple view */
+.hl{padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.hl .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hl h2{margin:0;font-size:18px;font-weight:600}
+.hl .hd p{margin:4px 0 0;font-size:13px;color:var(--mu)}
+.hl .ctrls{display:flex;gap:8px;flex-wrap:wrap;min-width:0;max-width:100%}
+.hl .ctrls .seg{max-width:100%}
+.hl3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.hcol{display:flex;flex-direction:column;gap:10px;min-width:0}
+.hcol .lbl{display:flex;justify-content:space-between}
+.hbest{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--s2);color:var(--tx)}
+a.hbest:hover{border-color:#3A3F48;color:var(--tx)}
+.hbest .ph{width:100%;aspect-ratio:16/9;max-height:210px;border-radius:8px;overflow:hidden;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--mu2);font-family:var(--mono);font-size:10px}
+.hbest .ph img{width:100%;height:100%;object-fit:cover}
+.hbest .t{font-size:14px;font-weight:500;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hbest .v{font-size:30px;font-weight:600;letter-spacing:-.02em}
+.hbest .v span{font-size:13px;font-weight:400;color:var(--mu)}
+.hmeta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mu);flex-wrap:wrap}
+.hrow{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;color:var(--tx2);font-size:13px}
+a.hrow:hover{background:var(--s2);color:var(--tx)}
+.hrow .n{font-family:var(--mono);font-size:11px;color:var(--mu2)}
+.hrow .tt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow .vw{font-family:var(--mono);font-size:12px;color:var(--tx)}
+.hempty{padding:24px 14px;border:1px dashed var(--line);border-radius:12px;color:var(--mu);font-size:13px;text-align:center}
+.moreb{align-self:center;height:38px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:var(--s1);color:var(--tx2);font-size:13px}
+.moreb:hover{color:var(--tx);border-color:#3A3F48}
+@media (max-width:1000px){.hl3{grid-template-columns:1fr}}
+@media (max-width:760px){.hl{padding:16px}.hl .ctrls{width:100%}}
 @media (max-width:1180px){
   main{flex-direction:column;align-items:stretch}
   aside{width:auto;position:static}
@@ -284,6 +312,9 @@ button.rr.on{background:#22262C}
   </header>
 
   <div id="perf" style="display:contents">
+  <section class="card hl" id="highlights" aria-label="Top videos"></section>
+  <button type="button" class="moreb" id="moreBtn" data-act="more" aria-expanded="false">Show all stats</button>
+  <div id="more" hidden style="display:contents">
   <section class="card aud" id="audience" aria-label="Audience"></section>
   <section class="kpis" id="kpis"></section>
   <section class="plats" id="plats" aria-label="Platforms"></section>
@@ -292,6 +323,7 @@ button.rr.on{background:#22262C}
     <div class="card board" id="board"></div>
     <aside class="card" id="detail" aria-label="Video details"></aside>
   </main>
+  </div>
   </div>
 
   <div id="wins" hidden style="display:flex;flex-direction:column;gap:20px">
@@ -332,6 +364,11 @@ const W = {
   sort: 'views', open: null, busy: {}, limit: 50,
   data: null, key: '', loading: false, error: null, running: false, runMsg: '', runWarn: false
 };
+
+// Highlights (the simple view at the top): best ever, top in 30 days, top in 10 days
+let MORE = false;
+try { MORE = localStorage.getItem('cos-more') === '1'; } catch (e) { MORE = false; }
+const H = { data: null, key: '', loading: false, error: null, plat: 'all', fmt: 'all' };
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -614,6 +651,12 @@ function render() {
   $('dFrom').value = S.from; $('dFrom').max = S.to;
   $('dTo').value = S.to; $('dTo').min = S.from; $('dTo').max = today;
 
+  renderHighlights();
+  $('more').hidden = !MORE;
+  $('dates').hidden = !MORE;
+  $('moreBtn').textContent = MORE ? 'Hide detailed stats' : 'Show all stats';
+  $('moreBtn').setAttribute('aria-expanded', MORE);
+
   $('sync').className = 'sync' + (busy ? ' soft' : '');
   $('sync').innerHTML = S.demo ? '<i></i>Showing sample numbers'
     : busy ? '<i></i>Checking for new data…'
@@ -794,6 +837,70 @@ function render() {
         : '<p class="note">Daily views build up from the first few syncs after posting, so older videos added later won\'t have this chart.</p>'}
     </div>
     ${sel.topComments && sel.topComments.length ? `<div class="sec"><h4>Latest comments</h4>${sel.topComments.map(m => `<div class="cm"><b>${esc(m.u)}</b><span>${esc(m.t)}</span></div>`).join('')}</div>` : ''}`;
+}
+
+/* ---------- Highlights ---------- */
+async function loadHighlights(name, fresh) {
+  if (!name || S.demo || H.loading) return;
+  H.loading = true; H.error = null;
+  try {
+    const p = new URLSearchParams();
+    if (KEY) p.set('k', KEY); else { if (TEAM) p.set('team', TEAM); p.set('client', name); }
+    if (fresh) p.set('fresh', '1');
+    const r = await fetch('/api/highlights?' + p.toString());
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('The highlights service returned ' + r.status));
+    H.data = j; H.key = name;
+  } catch (e) { H.error = e.message || String(e); H.key = name; }
+  H.loading = false;
+  if (S.view !== 'winners') renderHighlights();
+}
+
+function renderHighlights() {
+  const name = S.client;
+  if (!S.demo && name && H.key !== name && !H.loading) { H.data = null; H.error = null; loadHighlights(name); }
+  let src = H.key === name ? H.data : null;
+  if (S.demo) {
+    const vids = S.videos || [];
+    const since = n => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+    const pick = from => vids.filter(v => !from || (v.posted || '') >= from).slice().sort((a, b) => b.views - a.views).slice(0, 15);
+    src = { ever: pick(null), d30: pick(since(30)), d10: pick(since(10)) };
+  }
+  const keep = v => (H.plat === 'all' || v.plat === H.plat) && (H.fmt === 'all' || (v.format || 'short') === H.fmt);
+  const seg = (act, cur, opts) => `<div class="seg sm">${opts.map(([k, l]) =>
+    `<button type="button" data-act="${act}" data-v="${k}" class="${cur === k ? 'on' : ''}" aria-pressed="${cur === k}">${l}</button>`).join('')}</div>`;
+  const when = v => v.posted ? dateLabel(v.posted) + (v.posted.slice(0, 4) !== TODAY().slice(0, 4) ? ' ' + v.posted.slice(0, 4) : '') : '';
+  const col = (label, list, empty) => {
+    const l = (list || []).filter(keep);
+    if (!l.length) return `<div class="hcol"><span class="lbl">${label}</span><div class="hempty">${empty}</div></div>`;
+    const b = l[0];
+    const tag = b.url ? 'a' : 'div';
+    const best = `<${tag} class="hbest"${b.url ? ` href="${esc(b.url)}" target="_blank" rel="noopener"` : ''}>
+        <div class="ph">${b.thumb ? `<img src="${esc(b.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : 'NO THUMBNAIL'}</div>
+        <span class="t">${esc(b.title || 'Untitled video')}</span>
+        <span class="v">${fmt(b.views)} <span>views</span></span>
+        <span class="hmeta"><span class="dot" style="background:${P[b.plat].color}"></span>${P[b.plat].name}<span>·</span>${b.format === 'long' ? 'Long' : 'Short'}<span>·</span>${when(b)}</span>
+      </${tag}>`;
+    const rest = l.slice(1, 5).map((v, i) => {
+      const t = v.url ? 'a' : 'div';
+      return `<${t} class="hrow"${v.url ? ` href="${esc(v.url)}" target="_blank" rel="noopener"` : ''}><span class="n">${i + 2}</span>
+        <span class="tt"><span class="dot" style="background:${P[v.plat].color};margin-right:8px"></span>${esc(v.title || 'Untitled video')}</span>
+        <span class="vw">${fmt(v.views)}</span></${t}>`;
+    }).join('');
+    return `<div class="hcol"><span class="lbl">${label}</span>${best}${rest}</div>`;
+  };
+  let body;
+  if (!src && H.error && H.key === name) body = `<div class="hempty">Couldn't load the top videos. ${esc(H.error)}</div>`;
+  else if (!src) body = `<div class="hempty">Loading ${esc(name || '')}'s top videos…</div>`;
+  else body = `<div class="hl3">
+      ${col('Best video ever', src.ever, 'No videos synced yet.')}
+      ${col('Top in the last 30 days', src.d30, 'Nothing posted in the last 30 days.')}
+      ${col('Top in the last 10 days', src.d10, 'Nothing posted in the last 10 days.')}
+    </div>`;
+  $('highlights').innerHTML = `<div class="hd"><div><h2>Top videos</h2>
+      <p>${esc(name || '')}'s most-viewed videos. Click one to watch it.</p></div>
+      <div class="ctrls">${seg('hplat', H.plat, [['all', 'All platforms']].concat(Object.keys(P).map(k => [k, P[k].name])))}
+      ${seg('hfmt', H.fmt, [['all', 'All'], ['short', 'Short'], ['long', 'Long']])}</div></div>${body}`;
 }
 
 /* ---------- Winners tab ---------- */
@@ -1050,7 +1157,13 @@ document.addEventListener('click', e => {
     case 'wretry': loadWinners(true); break;
     case 'refresh':
       if (S.view === 'winners') { loadWinners(true); break; }
-      CACHE.clear(); load(true); break;
+      CACHE.clear(); load(true); if (S.client) loadHighlights(S.client, true); break;
+    case 'more':
+      MORE = !MORE;
+      try { localStorage.setItem('cos-more', MORE ? '1' : '0'); } catch (e) { /* fine without it */ }
+      render(); break;
+    case 'hplat': H.plat = v; renderHighlights(); break;
+    case 'hfmt': H.fmt = v; renderHighlights(); break;
     case 'retry': S.loading = true; S.error = null; render(); load(true); break;
     case 'demo': S.demo = true; S.loading = true; render(); load(); break;
   }
